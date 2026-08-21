@@ -7,16 +7,27 @@ import type { ParsedOrder } from '@/lib/parser/blanxerParser'
 export default function NewOrderPage() {
   const [rawText, setRawText] = useState('')
   const [parsed, setParsed] = useState<ParsedOrder | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleParse() {
-    setParsed(await parseOrder(rawText))
+    setError(null)
+    try {
+      setParsed(await parseOrder(rawText))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse order text.')
+    }
   }
 
   async function handleSave() {
     if (!parsed) return
-    const { orderId } = await saveOrder({ rawPastedText: rawText, parsed })
-    router.push(`/orders/${orderId}`)
+    setError(null)
+    try {
+      const { orderId } = await saveOrder({ rawPastedText: rawText, parsed })
+      router.push(`/orders/${orderId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save order.')
+    }
   }
 
   function updateField<K extends keyof ParsedOrder>(key: K, value: ParsedOrder[K]) {
@@ -28,6 +39,7 @@ export default function NewOrderPage() {
     return (
       <div>
         <textarea value={rawText} onChange={(e) => setRawText(e.target.value)} rows={20} placeholder="Paste the Blanxer order page text here" />
+        {error && <p role="alert">{error}</p>}
         <button onClick={handleParse}>Parse</button>
       </div>
     )
@@ -45,6 +57,7 @@ export default function NewOrderPage() {
         ))}
         <p>Total: {parsed.total ?? <strong>(needs review)</strong>}</p>
         <ul>{parsed.items.map((item, i) => <li key={i}>{item.name} {item.variant} x{item.qty} — {item.lineTotal}</li>)}</ul>
+        {error && <p role="alert">{error}</p>}
         <button onClick={handleSave}>Save order</button>
       </div>
       <pre>{rawText}</pre>

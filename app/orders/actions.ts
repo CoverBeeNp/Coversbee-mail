@@ -15,7 +15,9 @@ export async function saveOrder(input: { rawPastedText: string; parsed: ParsedOr
     ? await supabase.from('customers').select('id').eq('phone', parsed.customerPhone).maybeSingle()
     : parsed.customerEmail
     ? await supabase.from('customers').select('id').eq('email', parsed.customerEmail).maybeSingle()
-    : { data: null }
+    : { data: null, error: null }
+
+  if (existing.error) throw existing.error
 
   if (existing.data) {
     customerId = existing.data.id
