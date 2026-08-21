@@ -71,3 +71,12 @@ create policy "authenticated full access" on orders for all using (auth.role() =
 create policy "authenticated full access" on email_log for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "authenticated full access" on campaigns for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "authenticated full access" on campaign_recipients for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Recent Supabase CLI versions no longer auto-expose new tables to the Data API
+-- roles (auto_expose_new_tables defaults to off); RLS policies alone are not
+-- sufficient without the underlying table privileges, so grant them explicitly.
+grant select, insert, update, delete on customers to authenticated, service_role;
+grant select, insert, update, delete on orders to authenticated, service_role;
+grant select, insert, update, delete on email_log to authenticated, service_role;
+grant select, insert, update, delete on campaigns to authenticated, service_role;
+grant select, insert, update, delete on campaign_recipients to authenticated, service_role;
