@@ -19,7 +19,15 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setSubmitting(false)
     if (error) { setError(error.message); return }
+    // The nav bar's <Link href="/orders"> is prefetched while still logged
+    // out, so router.push alone can reuse that stale unauthenticated
+    // prefetch (only reproduces in a production build — next dev doesn't
+    // cache RSC payloads the same way). router.refresh() forces a fresh
+    // fetch of the destination so it reflects the just-created session,
+    // mirroring the same push+refresh pairing nav-actions.tsx's log-out
+    // already uses.
     router.push('/orders')
+    router.refresh()
   }
 
   return (
