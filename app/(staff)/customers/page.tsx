@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
 
 type Customer = {
@@ -90,12 +91,15 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-ink">Customers</h1>
           <p className="text-sm text-muted">Fix a typo&rsquo;d email or phone, or update marketing subscription.</p>
         </div>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, phone, or email"
-          className="field-input w-64"
-        />
+        <div className="flex items-center gap-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, phone, or email"
+            className="field-input w-64"
+          />
+          <Link href="/customers/new" className="btn-gold whitespace-nowrap">+ New customer</Link>
+        </div>
       </div>
 
       {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}
