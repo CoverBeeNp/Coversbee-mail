@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { createServiceClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -42,7 +43,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {status.last_error ? ` (${status.last_error})` : ""}
           </div>
         )}
-        <header className="flex justify-end p-4">
+        <header className="flex items-center justify-between p-4 border-b">
+          <nav className="flex gap-4">
+            <Link href="/orders">Orders</Link>
+            <Link href="/campaigns">Campaigns</Link>
+            <Link href="/email-log">Email Log</Link>
+          </nav>
           <a href="/login">Staff login</a>
         </header>
         {children}

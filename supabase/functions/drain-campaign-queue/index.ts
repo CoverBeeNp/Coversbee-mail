@@ -57,7 +57,24 @@ async function getAccessToken(supabase: ReturnType<typeof createClient>): Promis
   return body.access_token
 }
 
-Deno.serve(async () => {
+// Hard per-invocation cap, independent of the daily cap. This function runs
+// hourly via pg_cron (0003_pg_cron_drain.sql), so a smaller batch per run is
+// much less likely to exceed the Edge Function platform's wall-clock
+// execution limit than trying to push the full remaining daily allowance
+// (up to DAILY_CAP, e.g. 200) through in one sequential run.
+const MAX_BATCH_SIZE = 50
+
+Deno.serve(async (req) => {
+  // Defense against the function being triggered out-of-schedule: it's
+  // deployed with --no-verify-jwt (per the plan) so Supabase's platform-level
+  // JWT check is off, and the handler must do its own check of the
+  // Authorization header the pg_cron job sends (see 0003_pg_cron_drain.sql,
+  // which sends `Bearer <service_role_key>`).
+  const expectedAuth = `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+  if (req.headers.get('Authorization') !== expectedAuth) {
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401 })
+  }
+
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
   const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0)
@@ -68,11 +85,54 @@ Deno.serve(async () => {
   const remaining = DAILY_CAP - (sentToday ?? 0)
   if (remaining <= 0) return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'daily cap reached' }))
 
-  const { data: queued } = await supabase
+  const batchSize = Math.min(remaining, MAX_BATCH_SIZE)
+
+  const { data: candidates } = await supabase
     .from('campaign_recipients')
-    .select('campaign_id, customer_id, campaigns(subject, body_template), customers(email)')
+    .select('campaign_id, customer_id')
     .eq('status', 'queued')
-    .limit(remaining)
+    .limit(batchSize)
+
+  if (!candidates || candidates.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'nothing queued' }))
+
+  // Atomically claim this batch (queued -> sending) one row at a time, each
+  // guarded by .eq('status', 'queued') so a concurrent invocation (e.g. a
+  // manual test curl overlapping the scheduled cron tick) can't claim the
+  // same row twice — only one of the two concurrent UPDATEs will match and
+  // affect a row. Rows this invocation fails to claim (already claimed by
+  // another run) are simply skipped.
+  const claimed: typeof candidates = []
+  for (const c of candidates) {
+    const { data: updated } = await supabase
+      .from('campaign_recipients')
+      .update({ status: 'sending' })
+      .eq('campaign_id', c.campaign_id)
+      .eq('customer_id', c.customer_id)
+      .eq('status', 'queued')
+      .select('campaign_id, customer_id')
+    if (updated && updated.length > 0) claimed.push(c)
+  }
+
+  if (claimed.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'no rows claimed (contended by another run)' }))
+
+  // Fetch campaign/customer data separately and join in-memory rather than
+  // re-querying campaign_recipients with .in(campaign_id).in(customer_id) —
+  // that combination matches the cross product of the two id lists, not the
+  // exact (campaign_id, customer_id) pairs this invocation actually claimed,
+  // which could pull in rows a concurrent invocation claimed for a different
+  // pairing of the same ids.
+  const campaignIds = [...new Set(claimed.map((c) => c.campaign_id))]
+  const customerIds = [...new Set(claimed.map((c) => c.customer_id))]
+  const { data: campaignsData } = await supabase.from('campaigns').select('id, subject, body_template').in('id', campaignIds)
+  const { data: customersData } = await supabase.from('customers').select('id, email').in('id', customerIds)
+  const campaignById = new Map((campaignsData ?? []).map((c) => [c.id, c]))
+  const customerById = new Map((customersData ?? []).map((c) => [c.id, c]))
+  const queued = claimed.map((c) => ({
+    campaign_id: c.campaign_id,
+    customer_id: c.customer_id,
+    campaigns: campaignById.get(c.campaign_id),
+    customers: customerById.get(c.customer_id),
+  }))
 
   let sentCount = 0
 
@@ -118,7 +178,11 @@ Deno.serve(async () => {
     }
   }
 
-  const { data: distinctCampaigns } = await supabase.from('campaign_recipients').select('campaign_id').eq('status', 'queued')
+  // 'sending' rows (claimed but not yet resolved — e.g. by a still-running
+  // concurrent invocation) count as not-done too, so a campaign isn't
+  // prematurely marked 'sent' while another invocation is still processing
+  // some of its recipients.
+  const { data: distinctCampaigns } = await supabase.from('campaign_recipients').select('campaign_id').in('status', ['queued', 'sending'])
   const stillQueuedCampaignIds = new Set((distinctCampaigns ?? []).map((r) => r.campaign_id))
   const { data: sendingCampaigns } = await supabase.from('campaigns').select('id').eq('status', 'sending')
   for (const c of sendingCampaigns ?? []) {

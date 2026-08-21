@@ -12,15 +12,31 @@ export async function saveOrder(input: { rawPastedText: string; parsed: ParsedOr
 
   let customerId: string
   const existing = parsed.customerPhone
-    ? await supabase.from('customers').select('id').eq('phone', parsed.customerPhone).maybeSingle()
+    ? await supabase.from('customers').select('id, name, email').eq('phone', parsed.customerPhone).maybeSingle()
     : parsed.customerEmail
-    ? await supabase.from('customers').select('id').eq('email', parsed.customerEmail).maybeSingle()
+    ? await supabase.from('customers').select('id, name, email').eq('email', parsed.customerEmail).maybeSingle()
     : { data: null, error: null }
 
   if (existing.error) throw existing.error
 
   if (existing.data) {
     customerId = existing.data.id
+
+    // Blanxer's Email field can be blank on a first order, so a matched
+    // customer's email (or, less commonly, name) can be permanently null
+    // unless a later order carries it. Backfill only null/empty fields —
+    // never overwrite an existing non-null value with a different one, to
+    // avoid clobbering legitimate existing data.
+    const patch: Record<string, string> = {}
+    if (parsed.customerEmail && !existing.data.email) patch.email = parsed.customerEmail
+    // customers.name is NOT NULL — a customer created without a parsed name
+    // gets the 'Unknown' sentinel (see the insert below), so treat that as
+    // empty too rather than only a literal null/''.
+    if (parsed.customerName && (!existing.data.name || existing.data.name === 'Unknown')) patch.name = parsed.customerName
+    if (Object.keys(patch).length > 0) {
+      const { error: updateError } = await supabase.from('customers').update(patch).eq('id', customerId)
+      if (updateError) throw updateError
+    }
   } else {
     const { data: created, error } = await supabase
       .from('customers')

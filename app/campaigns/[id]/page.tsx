@@ -2,6 +2,7 @@
 import { use, useEffect, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase/client'
 import type { SegmentFilter } from '@/lib/segments/resolveSegment'
+import { renderCampaignEmail } from '@/lib/zoho/templates'
 
 type CampaignDetail = {
   id: string
@@ -57,6 +58,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   if (loadError) return <p role="alert">{loadError}</p>
   if (!campaign) return <p>Loading…</p>
 
+  const preview = renderCampaignEmail(campaign.subject, campaign.body_template)
+
   return (
     <div>
       <h1>{campaign.name}</h1>
@@ -73,6 +76,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <button disabled={sending} onClick={() => send(false)}>{sending ? 'Sending…' : 'Send to segment'}</button>
       </div>
       {message && <p>{message}</p>}
+
+      <h2>Preview</h2>
+      <p>This is exactly what will be sent — subject and body wrapped in the branded shell.</p>
+      <iframe
+        title="Campaign email preview"
+        srcDoc={preview.html}
+        style={{ width: '100%', maxWidth: 620, height: 500, border: '1px solid #ccc' }}
+      />
     </div>
   )
 }

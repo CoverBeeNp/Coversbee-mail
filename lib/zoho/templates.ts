@@ -1,6 +1,22 @@
 import type { ParsedItem } from '@/lib/parser/blanxerParser'
 import type { OrderStatus } from '@/lib/types'
 
+// Customer-supplied values (name, item name/variant) come from the Blanxer
+// order paste, which ultimately originates from customer-entered checkout
+// data — escape before interpolating into HTML so a name like
+// `<a href="...">` can't render as a live link, and `&`/`<` in a product
+// name can't mangle the markup, in a DKIM-signed email from
+// info@coversbee.com.np. Do NOT apply this to staff-authored campaign body
+// HTML (renderCampaignEmail's bodyHtml) — that's meant to render as HTML.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function shell(bodyHtml: string): string {
   return `
   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -15,7 +31,7 @@ function shell(bodyHtml: string): string {
 }
 
 function itemsHtml(items: ParsedItem[]): string {
-  return `<ul>${items.map((i) => `<li>${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty} — रू ${i.lineTotal}</li>`).join('')}</ul>`
+  return `<ul>${items.map((i) => `<li>${escapeHtml(i.name)}${i.variant ? ` (${escapeHtml(i.variant)})` : ''} x${i.qty} — रू ${i.lineTotal}</li>`).join('')}</ul>`
 }
 
 const COPY: Record<OrderStatus, { subjectPrefix: string; message: string }> = {
@@ -32,7 +48,7 @@ export function renderTransactionalEmail(
   const copy = COPY[status]
   const subject = `${copy.subjectPrefix} — Order #${order.blanxerOrderNumber ?? ''}`.trim()
   const html = shell(`
-    <p>Hi ${order.customerName ?? 'there'},</p>
+    <p>Hi ${order.customerName ? escapeHtml(order.customerName) : 'there'},</p>
     <p>${copy.message}</p>
     ${itemsHtml(order.items)}
     <p><strong>Total: रू ${order.total ?? ''}</strong></p>
