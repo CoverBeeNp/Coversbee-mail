@@ -24,6 +24,12 @@ export async function getAccessToken(supabase: SupabaseClient): Promise<string> 
   }
 
   const body = await response.json()
+
+  if (!body?.access_token || typeof body.expires_in !== 'number') {
+    await supabase.from('system_status').update({ zoho_connected: false, last_error: body?.error ?? 'Zoho token refresh failed', updated_at: new Date().toISOString() }).eq('id', true)
+    throw new ZohoAuthError(body?.error ?? 'Zoho OAuth refresh failed — reconnect Zoho')
+  }
+
   const expiresAt = new Date(Date.now() + body.expires_in * 1000).toISOString()
   await supabase.from('zoho_oauth_state').update({ access_token: body.access_token, expires_at: expiresAt, updated_at: new Date().toISOString() }).eq('id', true)
   await supabase.from('system_status').update({ zoho_connected: true, last_error: null, updated_at: new Date().toISOString() }).eq('id', true)
@@ -53,7 +59,13 @@ export async function sendEmail(
     }
   )
 
-  const payload = await response.json()
+  let payload
+  try {
+    payload = await response.json()
+  } catch {
+    throw new ZohoSendError(`Zoho send failed with status ${response.status} and an unreadable response body`)
+  }
+
   if (!response.ok) {
     throw new ZohoSendError(payload?.data?.moreInfo ?? payload?.message ?? `Zoho send failed with status ${response.status}`)
   }
