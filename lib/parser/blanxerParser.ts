@@ -13,7 +13,18 @@ export type ParsedOrder = {
   address: string | null
   landmark: string | null
   orderNote: string | null
+  trackingUrl: string | null
   unmatchedFields: string[]
+}
+
+// Combines the parsed address fields into a single display string for the
+// email templates ("Billing Address"/"Delivery Address"), which only need
+// one formatted address rather than the four separate parsed pieces.
+export function formatAddress(parsed: Pick<ParsedOrder, 'address' | 'landmark' | 'city' | 'province'>): string | null {
+  const parts = [parsed.address, parsed.landmark, parsed.city, parsed.province].filter(
+    (p): p is string => Boolean(p)
+  )
+  return parts.length > 0 ? parts.join(', ') : null
 }
 
 function toNumber(line: string | undefined): number | null {
@@ -82,13 +93,14 @@ export function parseBlanxerOrder(rawText: string): ParsedOrder {
   const address = labelValue(lines, 'Address:')
   const landmark = labelValue(lines, 'Landmark:')
   const orderNote = labelValue(lines, 'Order Note:')
+  const trackingUrl = labelValue(lines, 'Tracking URL:')
 
   if (customerName === null) unmatchedFields.push('customerName')
   if (total === null) unmatchedFields.push('total')
 
   return {
     blanxerOrderNumber, items, subtotal, deliveryCharge, total,
-    customerName, customerEmail, customerPhone, province, city, address, landmark, orderNote,
+    customerName, customerEmail, customerPhone, province, city, address, landmark, orderNote, trackingUrl,
     unmatchedFields,
   }
 }

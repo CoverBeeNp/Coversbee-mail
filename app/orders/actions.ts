@@ -1,6 +1,6 @@
 'use server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { parseBlanxerOrder, type ParsedOrder } from '@/lib/parser/blanxerParser'
+import { parseBlanxerOrder, formatAddress, type ParsedOrder } from '@/lib/parser/blanxerParser'
 
 export async function parseOrder(rawText: string): Promise<ParsedOrder> {
   return parseBlanxerOrder(rawText)
@@ -56,6 +56,8 @@ export async function saveOrder(input: { rawPastedText: string; parsed: ParsedOr
       total: parsed.total,
       status: 'received',
       blanxer_order_number: parsed.blanxerOrderNumber,
+      address: formatAddress(parsed),
+      tracking_url: parsed.trackingUrl,
     })
     .select('id')
     .single()

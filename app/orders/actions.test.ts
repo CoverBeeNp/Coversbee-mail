@@ -36,7 +36,7 @@ describe.skipIf(!localSupabaseReachable)('saveOrder (Finding 7: backfill custome
 
     const baseParsed = {
       items: [], subtotal: 100, deliveryCharge: 0, total: 100,
-      province: null, city: null, address: null, landmark: null, orderNote: null,
+      province: null, city: null, address: null, landmark: null, orderNote: null, trackingUrl: null,
       unmatchedFields: [],
     }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseBlanxerOrder } from './blanxerParser'
+import { parseBlanxerOrder, formatAddress } from './blanxerParser'
 
 const sample = `#1747
 Created: Aug 20, 2026 2:50 AM
@@ -64,6 +64,7 @@ describe('parseBlanxerOrder', () => {
     expect(result.customerPhone).toBe('9709956477')
     expect(result.city).toBe('Kathmandu Inside Ring Road')
     expect(result.address).toBe('Dulal chowk, Kapan')
+    expect(result.trackingUrl).toBe('https://coversbee.com.np/track/6a86b1ab454b1a6bfa9d2c73')
   })
 
   it('leaves blank customer fields blank instead of guessing', () => {
@@ -181,6 +182,25 @@ Order Note:
     expect(result.address).toBe('Dulal chowk, Kapan')
     expect(result.landmark).toBeNull()
     expect(result.orderNote).toBeNull()
+    expect(result.trackingUrl).toBe('https://coversbee.com.np/track/6a86b1ab454b1a6bfa9d2c73')
     expect(result.unmatchedFields).toEqual([])
+  })
+})
+
+describe('formatAddress', () => {
+  it('joins the non-null address parts with commas', () => {
+    expect(formatAddress({ address: 'Dulal chowk, Kapan', landmark: null, city: 'Kathmandu', province: null })).toBe(
+      'Dulal chowk, Kapan, Kathmandu'
+    )
+  })
+
+  it('returns null when every part is null', () => {
+    expect(formatAddress({ address: null, landmark: null, city: null, province: null })).toBeNull()
+  })
+
+  it('includes landmark and province when present', () => {
+    expect(
+      formatAddress({ address: 'Dulal chowk, Kapan', landmark: 'Near temple', city: 'Kathmandu', province: 'Bagmati' })
+    ).toBe('Dulal chowk, Kapan, Near temple, Kathmandu, Bagmati')
   })
 })

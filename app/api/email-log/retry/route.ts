@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, blanxer_order_number, parsed_items, total, customer_id, customers(name, email)')
+    .select('id, blanxer_order_number, parsed_items, total, address, tracking_url, customer_id, customers(name, email)')
     .eq('id', logRow.order_id)
     .single()
   if (!order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 })
@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
     items: (order.parsed_items ?? []) as never,
     total: order.total,
     customerName: customer?.name ?? null,
+    address: order.address,
+    trackingUrl: order.tracking_url,
   })
 
   try {

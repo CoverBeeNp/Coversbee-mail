@@ -2,15 +2,42 @@ import { describe, it, expect } from 'vitest'
 import { renderTransactionalEmail, renderCampaignEmail, escapeHtml } from './templates'
 
 describe('renderTransactionalEmail', () => {
-  it('renders a subject and HTML body referencing the order number', () => {
-    const { subject, html } = renderTransactionalEmail('dispatched', {
+  it('renders a subject and HTML body referencing the order number, customer, items, and total for "received"', () => {
+    const { subject, html } = renderTransactionalEmail('received', {
       blanxerOrderNumber: '1747', items: [{ name: 'SIlicon', variant: 'Old Rose/iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
-      total: 1768, customerName: 'Nees shah',
+      total: 1768, customerName: 'Nees shah', address: 'Dulal chowk, Kapan',
     })
     expect(subject).toContain('1747')
     expect(html).toContain('Nees shah')
     expect(html).toContain('SIlicon')
     expect(html).toContain('1768')
+    expect(html).toContain('Dulal chowk, Kapan')
+  })
+
+  it('renders the carrier and tracking link for "dispatched"', () => {
+    const { subject, html } = renderTransactionalEmail('dispatched', {
+      blanxerOrderNumber: '1747', items: [], total: 1768, customerName: 'Nees shah',
+      trackingUrl: 'https://coversbee.com.np/track/abc123',
+    })
+    expect(subject).toContain('1747')
+    expect(html).toContain('Nepal Can Move')
+    expect(html).toContain('https://coversbee.com.np/track/abc123')
+  })
+
+  it('falls back to a placeholder message when dispatched with no tracking link', () => {
+    const { html } = renderTransactionalEmail('dispatched', {
+      blanxerOrderNumber: '1747', items: [], total: 1768, customerName: 'Nees shah', trackingUrl: null,
+    })
+    expect(html).not.toContain('href="null"')
+    expect(html).toContain('tracking link')
+  })
+
+  it('renders the delivery address and customer care contact for "delivered"', () => {
+    const { html } = renderTransactionalEmail('delivered', {
+      blanxerOrderNumber: '1747', items: [], total: 1768, customerName: 'Nees shah', address: 'Dulal chowk, Kapan',
+    })
+    expect(html).toContain('Dulal chowk, Kapan')
+    expect(html).toContain('info@coversbee.com.np')
   })
 
   for (const status of ['received', 'dispatched', 'delivered', 'cancelled'] as const) {

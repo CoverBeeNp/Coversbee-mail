@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const { data: order, error } = await supabase
     .from('orders')
-    .select('id, blanxer_order_number, parsed_items, total, customer_id, customers(name, email)')
+    .select('id, blanxer_order_number, parsed_items, total, address, tracking_url, customer_id, customers(name, email)')
     .eq('id', orderId)
     .single()
   if (error || !order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 })
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       items: (order.parsed_items ?? []) as never,
       total: order.total,
       customerName: customer?.name ?? null,
+      address: order.address,
+      trackingUrl: order.tracking_url,
     })
     if (!customer?.email) throw new Error('Customer has no email on file')
     const result = await sendEmail(supabase, { to: customer.email, subject, htmlBody: html })
