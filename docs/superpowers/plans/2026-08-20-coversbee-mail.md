@@ -45,7 +45,7 @@ lib/
   zoho/templates.test.ts
   segments/resolveSegment.ts
   segments/resolveSegment.test.ts
-middleware.ts                 (Supabase Auth route guard)
+proxy.ts                      (Supabase Auth route guard — Next.js 16 renamed `middleware.ts`/`middleware()` to `proxy.ts`/`proxy()`, same NextRequest/NextResponse API)
 app/
   login/page.tsx
   layout.tsx                  (zoho-broken banner)
@@ -220,30 +220,37 @@ git commit -m "chore: scaffold Next.js app and initial Supabase schema"
 
 **Files:**
 - Create: `app/login/page.tsx`
-- Create: `middleware.ts`
+- Create: `proxy.ts`
 - Modify: `app/layout.tsx`
 
 **Interfaces:**
 - Consumes: `createBrowserClient()` from Task 1.
 - Produces: unauthenticated requests to any `/orders`, `/campaigns`, `/email-log` route redirect to `/login`.
 
-- [ ] **Step 1: Write the middleware route guard**
+**Next.js 16 note:** `middleware.ts`/`middleware()` was renamed to `proxy.ts`/`proxy()` in Next.js 16 (this project's installed version). The file must be named `proxy.ts` at the project root and export a function named `proxy` (or a default export) — everything else about the API (`NextRequest`, `NextResponse`, the `config.matcher` shape) is unchanged from prior middleware docs.
+
+**@supabase/ssr note:** the installed version (0.12.4) types the single-cookie `get`/`set`/`remove` adapter as deprecated in favor of a batch `getAll`/`setAll` adapter. Use `getAll`/`setAll` below, not `get`/`set`/`remove`.
+
+- [ ] **Step 1: Write the proxy route guard**
 
 ```typescript
-// middleware.ts
+// proxy.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request })
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => request.cookies.get(name)?.value,
-        set: (name, value, options) => response.cookies.set(name, value, options),
-        remove: (name, options) => response.cookies.set(name, '', { ...options, maxAge: 0 }),
+        getAll: () => request.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+        },
       },
     }
   )
@@ -300,7 +307,7 @@ Expected: visiting `/orders` while logged out redirects to `/login`; logging in 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add middleware.ts app/login/page.tsx app/layout.tsx
+git add proxy.ts app/login/page.tsx app/layout.tsx
 git commit -m "feat: add staff login and auth route guard"
 ```
 
@@ -888,6 +895,8 @@ git commit -m "feat: add order paste form with confirm-before-save"
 - Produces: `renderTransactionalEmail(status: OrderStatus, order: { blanxerOrderNumber: string | null; items: ParsedItem[]; total: number | null; customerName: string | null }): { subject: string; html: string }`.
 - Produces: `POST /api/send-transactional { orderId, status }` — sends the matching template, and only on success updates `orders.status`/`status_updated_at` and inserts an `email_log` row (`status='sent'`); on failure inserts an `email_log` row with `status='failed'` + `error_message` and leaves `orders.status` unchanged.
 
+**Next.js 16 note:** dynamic route `params` is an async `Promise` in this project's Next.js version (16), including for Client Component pages. `app/orders/[id]/page.tsx` below is a Client Component, so it unwraps `params` with React's `use()` hook (`const { id } = use(params)`) rather than destructuring it directly.
+
 - [ ] **Step 1: Write the failing test for template rendering**
 
 ```typescript
@@ -1067,12 +1076,13 @@ export default async function OrdersPage() {
 ```tsx
 // app/orders/[id]/page.tsx
 'use client'
-import { useState } from 'react'
+import { use, useState } from 'react'
 import type { OrderStatus } from '@/lib/types'
 
 const STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [sending, setSending] = useState<OrderStatus | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -1082,7 +1092,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     const res = await fetch('/api/send-transactional', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: params.id, status }),
+      body: JSON.stringify({ orderId: id, status }),
     })
     const body = await res.json()
     setMessage(body.ok ? `Sent "${status}" email.` : `Failed: ${body.error}`)
@@ -1120,8 +1130,10 @@ git commit -m "feat: add transactional email templates, order list, and status-s
 
 **Files:**
 - Create: `lib/segments/resolveSegment.ts`, `lib/segments/resolveSegment.test.ts`
-- Create: `app/campaigns/page.tsx`, `app/campaigns/new/page.tsx`
+- Create: `app/campaigns/page.tsx`, `app/campaigns/new/page.tsx`, `app/campaigns/[id]/page.tsx`
 - Create: `app/api/campaigns/send/route.ts`
+
+**Next.js 16 note:** dynamic route `params` is an async `Promise` in this project's Next.js version (16), including for Client Component pages. `app/campaigns/[id]/page.tsx` below is a Client Component, so it unwraps `params` with React's `use()` hook (`const { id } = use(params)`) rather than destructuring it directly.
 
 **Interfaces:**
 - Produces: `type SegmentFilter = { type: 'all_subscribed' } | { type: 'recent_customers'; days: number }`.
@@ -1290,10 +1302,45 @@ export default async function CampaignsPage() {
 }
 ```
 
+- [ ] **Step 6b: Write the campaign detail page**
+
+```tsx
+// app/campaigns/[id]/page.tsx
+'use client'
+import { use, useState } from 'react'
+
+export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [sending, setSending] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function send(testMode: boolean) {
+    setSending(true)
+    setMessage(null)
+    const res = await fetch('/api/campaigns/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId: id, testMode }),
+    })
+    const body = await res.json()
+    setMessage(body.ok ? `Queued ${body.queued} recipient(s).` : `Failed: ${body.error}`)
+    setSending(false)
+  }
+
+  return (
+    <div>
+      <button disabled={sending} onClick={() => send(true)}>Send test</button>
+      <button disabled={sending} onClick={() => send(false)}>Send to segment</button>
+      {message && <p>{message}</p>}
+    </div>
+  )
+}
+```
+
 - [ ] **Step 7: Manual verification**
 
-Run: `npm run dev`, add your own email to `test_recipients` via Supabase Studio, create a campaign, open it, and trigger `POST /api/campaigns/send { campaignId, testMode: true }` via a button or curl.
-Expected: `campaign_recipients` gets one `queued` row for your test customer, `campaigns.status` becomes `sending`.
+Run: `npm run dev`, add your own email to `test_recipients` via Supabase Studio, create a campaign (redirects to `/campaigns/<id>`), click "Send test".
+Expected: `campaign_recipients` gets one `queued` row for your test customer, `campaigns.status` becomes `sending`, and the page shows "Queued 1 recipient(s)."
 
 - [ ] **Step 8: Commit**
 
