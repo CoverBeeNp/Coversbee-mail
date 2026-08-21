@@ -40,6 +40,14 @@ describe('renderTransactionalEmail', () => {
     expect(html).toContain('info@coversbee.com.np')
   })
 
+  it('includes the Google review link and an SMS review heads-up for "delivered"', () => {
+    const { html } = renderTransactionalEmail('delivered', {
+      blanxerOrderNumber: '1747', items: [], total: 1768, customerName: 'Nees shah',
+    })
+    expect(html).toContain('https://g.page/r/CeedE59zZPfHEAI/review')
+    expect(html.toLowerCase()).toContain('text')
+  })
+
   for (const status of ['received', 'dispatched', 'delivered', 'cancelled'] as const) {
     it(`has a template for status "${status}"`, () => {
       const { subject } = renderTransactionalEmail(status, { blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test' })

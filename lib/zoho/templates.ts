@@ -3,6 +3,7 @@ import type { OrderStatus } from '@/lib/types'
 
 const CUSTOMER_CARE_EMAIL = 'info@coversbee.com.np'
 const CARRIER_NAME = 'Nepal Can Move'
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CeedE59zZPfHEAI/review'
 
 // Customer-supplied values (name, address, item name/variant) come from the
 // Blanxer order paste, which ultimately originates from customer-entered
@@ -120,6 +121,11 @@ function renderDelivered(order: TransactionalOrder): { subject: string; html: st
     <p>We&rsquo;re pleased to let you know that your order #${orderNumber} has been successfully delivered!</p>
     <p><strong>Delivery Details:</strong><br>Delivery Address: ${addressText(order)}</p>
     <p>We hope you enjoy your purchase! If you have any questions or concerns, please write to our customer care at <a href="mailto:${CUSTOMER_CARE_EMAIL}">${CUSTOMER_CARE_EMAIL}</a>. Our associates will contact you as soon as possible to resolve any issues you have with your order.</p>
+    <p>Loved your experience? A quick review helps other customers find CoversBee&rsquo;s products and services:</p>
+    <p style="text-align:center; margin:20px 0;">
+      <a href="${GOOGLE_REVIEW_URL}" style="display:inline-block; background:#fbb336; color:#0a0a0a; padding:10px 20px; border-radius:999px; font-weight:700; text-decoration:none;">Leave us a review</a>
+    </p>
+    <p>You&rsquo;ll also receive a text message from us asking you to review the product — replying to that text helps other customers too, so we&rsquo;d appreciate a moment of your time there as well.</p>
     <p>Best,<br>CoversBee</p>
   `, order.customerId ?? undefined)
   return { subject, html }
