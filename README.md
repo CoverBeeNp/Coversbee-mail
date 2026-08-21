@@ -19,7 +19,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` / `ZOHO_REFRESH_TOKEN` | Zoho Mail OAuth credentials (see below). Server-only. |
 | `ZOHO_ACCOUNT_ID` | The Zoho Mail account ID for the sending mailbox. |
 | `ZOHO_FROM_ADDRESS` | Sending address, e.g. `info@coversbee.com.np`. |
-| `ZOHO_DAILY_CAP` | Max marketing emails the hourly drain sends per rolling UTC day. Transactional sends aren't capped. |
+| `ZOHO_HOURLY_CAP` | Max marketing emails the drain sends per rolling 1-hour window — matches Zoho Mail's real limit (50-500/hour, dynamic by account reputation; see "Zoho sending limits" below), not a daily figure. Default 40, conservative for a new/unproven sending account. Transactional sends aren't capped by this. |
 | `APP_URL` | The app's own public URL (e.g. `https://coversbee-mail.vercel.app`, or `http://localhost:3000` locally) — used to build the unsubscribe link embedded in every email footer. |
 
 The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and has its own separate secrets, set via `supabase secrets set` (below) — it does not read `.env.local`, and needs its own copy of `APP_URL` too (its emails build their own unsubscribe links independently, since the shell is duplicated across the Node/Deno boundary — see the comment in that file).
@@ -51,7 +51,8 @@ The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and h
      ZOHO_REFRESH_TOKEN=xxx \
      ZOHO_ACCOUNT_ID=xxx \
      ZOHO_FROM_ADDRESS=info@coversbee.com.np \
-     ZOHO_DAILY_CAP=200
+     ZOHO_HOURLY_CAP=40 \
+     APP_URL=https://<your-domain>
    ```
 
 4. Store the function URL and that same secret in Supabase Vault (the cron job reads from Vault, not a database-level GUC — Supabase Cloud's `postgres` role can't run `alter database ... set`). Run in the SQL editor:
@@ -84,6 +85,12 @@ The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and h
 4. Find `ZOHO_ACCOUNT_ID`: `GET https://mail.zoho.com/api/accounts` with `Authorization: Zoho-oauthtoken <access_token>`.
 
 If the refresh token is ever revoked, the app flips `system_status.zoho_connected` to `false` and shows a banner. Reconnecting means repeating steps 2–3 and updating `ZOHO_REFRESH_TOKEN` in both `.env.local`/Vercel and `supabase secrets set`.
+
+### Zoho sending limits (learned the hard way)
+
+Per Zoho Mail's published usage policy: outgoing external mail is capped at **50–500 emails/hour** on a **rolling 1-hour basis** (dynamic, based on sender reputation — assume the low end for a new account), and **burst sending is explicitly not supported regardless of staying under that cap**. A tight loop of API calls with no spacing between them can trigger a `550 5.4.6 Unusual sending activity detected` block even at low total volume — this happened once during development from rapid manual testing, not real usage. Both send loops (the campaign drain function and the campaign test-send route) space sends out by a couple of seconds for exactly this reason; don't remove that delay to "speed things up."
+
+If sending ever gets blocked: `mail.zoho.com/mailadmin` has a self-service unblock, or the auto-generated block notification email includes a direct unblock link. Zoho's own guidance for this kind of workload — automated transactional/notification email, as opposed to human-composed correspondence — is to use **ZeptoMail** (their dedicated transactional-email product) instead of a regular Zoho Mail mailbox. Worth evaluating as order/customer volume grows past what a standard mailbox's reputation can comfortably support; out of scope for the current setup.
 
 ## Running locally
 

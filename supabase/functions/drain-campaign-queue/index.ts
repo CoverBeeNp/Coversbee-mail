@@ -12,7 +12,13 @@
 // lib/zoho/templates.ts) are duplicated here rather than imported.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const DAILY_CAP = Number(Deno.env.get('ZOHO_DAILY_CAP') ?? '200')
+// Zoho Mail's real limit (per their published usage policy) is a rolling
+// 1-hour window (50-500 emails/hour, dynamic based on account reputation —
+// a fresh business account should assume the low end until it's built up a
+// sending history), not a fixed daily figure. This function runs hourly via
+// cron, so HOURLY_CAP is checked against sends in the trailing 60 minutes,
+// not sends since UTC midnight — see the cap check below.
+const HOURLY_CAP = Number(Deno.env.get('ZOHO_HOURLY_CAP') ?? '40')
 
 // Mirrors renderCampaignEmail()/shell()/unsubscribeUrl() in
 // lib/zoho/templates.ts — kept in sync manually across the Node/Deno
@@ -64,12 +70,20 @@ async function getAccessToken(supabase: ReturnType<typeof createClient>): Promis
   return body.access_token
 }
 
-// Hard per-invocation cap, independent of the daily cap. This function runs
+// Hard per-invocation cap, independent of HOURLY_CAP. This function runs
 // hourly via pg_cron (0003_pg_cron_drain.sql), so a smaller batch per run is
 // much less likely to exceed the Edge Function platform's wall-clock
-// execution limit than trying to push the full remaining daily allowance
-// (up to DAILY_CAP, e.g. 200) through in one sequential run.
+// execution limit — especially now that SEND_DELAY_MS below adds real time
+// between each send.
 const MAX_BATCH_SIZE = 50
+
+// Zoho's usage policy explicitly states burst sending is not supported
+// regardless of staying under the hourly cap — a tight loop of API calls
+// with no spacing looks exactly like a burst, and triggered a real
+// "550 5.4.6 Unusual sending activity" block during testing even at a low
+// total volume. Spacing sends out (skipped after the last recipient) keeps
+// a batch from reading as one.
+const SEND_DELAY_MS = 2000
 
 Deno.serve(async (req) => {
   // Defense against the function being triggered out-of-schedule: it's
@@ -93,13 +107,13 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0)
-  const { count: sentToday } = await supabase
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+  const { count: sentLastHour } = await supabase
     .from('email_log').select('*', { count: 'exact', head: true })
-    .eq('type', 'marketing').eq('status', 'sent').gte('sent_at', startOfDay.toISOString())
+    .eq('type', 'marketing').eq('status', 'sent').gte('sent_at', oneHourAgo.toISOString())
 
-  const remaining = DAILY_CAP - (sentToday ?? 0)
-  if (remaining <= 0) return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'daily cap reached' }))
+  const remaining = HOURLY_CAP - (sentLastHour ?? 0)
+  if (remaining <= 0) return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'hourly cap reached' }))
 
   const batchSize = Math.min(remaining, MAX_BATCH_SIZE)
 
@@ -157,8 +171,8 @@ Deno.serve(async (req) => {
   // Zoho's real refresh endpoint when the cached token is missing/expired,
   // so when credentials are genuinely broken every recipient in the batch
   // would otherwise trigger its own failing OAuth refresh call — up to
-  // `remaining` (capped at DAILY_CAP, e.g. 200) real requests to Zoho's
-  // token endpoint in a single invocation. Resolving it once means a broken
+  // `remaining` (capped at HOURLY_CAP) real requests to Zoho's token
+  // endpoint in a single invocation. Resolving it once means a broken
   // refresh token fails fast (one Zoho call) and every recipient is then
   // marked failed locally without hammering Zoho further.
   let token: string | undefined
@@ -169,7 +183,8 @@ Deno.serve(async (req) => {
     tokenError = err as Error
   }
 
-  for (const row of queued ?? []) {
+  for (let i = 0; i < queued.length; i++) {
+    const row = queued[i]
     const campaign = (row as any).campaigns
     const customer = (row as any).customers
     try {
@@ -192,6 +207,7 @@ Deno.serve(async (req) => {
       await supabase.from('campaign_recipients').update({ status: 'failed' }).eq('campaign_id', row.campaign_id).eq('customer_id', row.customer_id)
       await supabase.from('email_log').insert({ customer_id: row.customer_id, type: 'marketing', template_used: row.campaign_id, status: 'failed', error_message: (err as Error).message })
     }
+    if (i < queued.length - 1) await new Promise((resolve) => setTimeout(resolve, SEND_DELAY_MS))
   }
 
   // 'sending' rows (claimed but not yet resolved — e.g. by a still-running

@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
 
     let sent = 0
     const errors: string[] = []
-    for (const to of emails) {
+    for (let i = 0; i < emails.length; i++) {
+      const to = emails[i]
       const matchedCustomerId = customerIdByEmail.get(to)
       // Rendered per-recipient (rather than once, reused) because the
       // unsubscribe link is customer-specific.
@@ -59,6 +60,13 @@ export async function POST(request: NextRequest) {
           })
         }
       }
+      // Zoho's usage policy explicitly does not support burst sending
+      // regardless of staying under the hourly cap — a tight loop of API
+      // calls with no spacing looks like exactly that, and triggered a real
+      // "550 5.4.6 Unusual sending activity" block during testing. A small
+      // gap between sends (skipped after the last recipient) keeps this
+      // from reading as a burst even for a small test list.
+      if (i < emails.length - 1) await new Promise((resolve) => setTimeout(resolve, 1000))
     }
     if (sent === 0) return NextResponse.json({ ok: false, error: errors[0] ?? 'Test send failed' }, { status: 502 })
     return NextResponse.json({ ok: true, queued: sent })
