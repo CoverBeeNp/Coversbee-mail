@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #0a0a0a;
+  --ink-soft: #262521;
+  --gold: #fbb336;
+  --gold-dark: #e29a1e;
+  --paper: #fafaf8;
+  --surface: #ffffff;
+  --line: #e7e4dc;
+  --muted: #746f63;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-gold: var(--gold);
+  --color-gold-dark: var(--gold-dark);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-manrope);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-ink text-gold hover:bg-ink-soft;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-gold text-ink hover:bg-gold-dark;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 border border-line bg-surface text-ink hover:border-ink;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface p-6 shadow-sm;
+  }
+  .field-label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-gold-dark focus:ring-2 focus:ring-gold/30;
+  }
+  .badge-neutral {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-ink/5 text-ink-soft;
+  }
+  .badge-gold {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gold/20 text-gold-dark;
+  }
+  .badge-success {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800;
+  }
+  .badge-danger {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700;
+  }
+  .table-shell {
+    @apply w-full overflow-hidden rounded-2xl border border-line bg-surface;
+  }
+  .table-shell table {
+    @apply w-full border-collapse text-sm;
+  }
+  .table-shell th {
+    @apply border-b border-line bg-paper px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+  .table-shell td {
+    @apply border-b border-line px-4 py-3 align-middle last:border-b-0;
+  }
+  .table-shell tr:last-child td {
+    @apply border-b-0;
+  }
+  .alert-error {
+    @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700;
+  }
 }

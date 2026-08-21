@@ -17,15 +17,19 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// Once the app is deployed to a public URL, replace the text wordmark below
+// with `<img src="https://<your-domain>/logo.png" width="32" height="32" ... />`
+// — email clients need a publicly reachable image URL, which doesn't exist
+// pre-deployment, so this stays text-only for now.
 function shell(bodyHtml: string): string {
   return `
-  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-    <div style="background:#7a2e2e; color:#fff; padding:16px; text-align:center;">
-      <strong>CoversBee</strong>
+  <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#fafaf8;">
+    <div style="background:#0a0a0a; color:#fbb336; padding:20px; text-align:center; font-size:18px; font-weight:700; letter-spacing:0.02em;">
+      CoversBee
     </div>
-    <div style="padding:24px;">${bodyHtml}</div>
-    <div style="padding:16px; font-size:12px; color:#888; text-align:center;">
-      coversbee.com.np — <a href="mailto:info@coversbee.com.np?subject=Unsubscribe">Unsubscribe</a>
+    <div style="background:#ffffff; padding:24px; color:#0a0a0a;">${bodyHtml}</div>
+    <div style="padding:16px; font-size:12px; color:#746f63; text-align:center;">
+      coversbee.com.np — <a href="mailto:info@coversbee.com.np?subject=Unsubscribe" style="color:#e29a1e;">Unsubscribe</a>
     </div>
   </div>`
 }

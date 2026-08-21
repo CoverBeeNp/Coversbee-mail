@@ -13,6 +13,12 @@ type CampaignDetail = {
   status: 'draft' | 'sending' | 'sent'
 }
 
+const STATUS_BADGE: Record<CampaignDetail['status'], string> = {
+  draft: 'badge-neutral',
+  sending: 'badge-gold',
+  sent: 'badge-success',
+}
+
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null)
@@ -55,35 +61,53 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     if (body.ok) await loadCampaign()
   }
 
-  if (loadError) return <p role="alert">{loadError}</p>
-  if (!campaign) return <p>Loading…</p>
+  if (loadError) return <div className="mx-auto max-w-3xl px-6 py-8"><p role="alert" className="alert-error">{loadError}</p></div>
+  if (!campaign) return <div className="mx-auto max-w-3xl px-6 py-8"><p className="text-muted">Loading…</p></div>
 
   const preview = renderCampaignEmail(campaign.subject, campaign.body_template)
 
   return (
-    <div>
-      <h1>{campaign.name}</h1>
-      <p>Subject: {campaign.subject}</p>
-      <p>Status: {campaign.status}</p>
-      <p>
-        Segment: {campaign.segment_filter.type === 'recent_customers'
-          ? `Recent customers (last ${campaign.segment_filter.days} days)`
-          : 'All subscribed customers'}
-      </p>
+    <div className="mx-auto max-w-4xl px-6 py-8">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-ink">{campaign.name}</h1>
+          <p className="mt-1 text-sm text-muted">{campaign.subject}</p>
+        </div>
+        <span className={STATUS_BADGE[campaign.status]}>{campaign.status}</span>
+      </div>
+
+      <div className="mb-6 card">
+        <p className="field-label mb-1">Audience</p>
+        <p className="text-sm text-ink-soft">
+          {campaign.segment_filter.type === 'recent_customers'
+            ? `Recent customers (last ${campaign.segment_filter.days} days)`
+            : 'All subscribed customers'}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button disabled={sending} onClick={() => send(true)} className="btn-outline">
+            {sending ? 'Sending…' : 'Send test'}
+          </button>
+          <button disabled={sending} onClick={() => send(false)} className="btn-gold">
+            {sending ? 'Sending…' : 'Send to segment'}
+          </button>
+        </div>
+        {message && (
+          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-red-600' : 'text-emerald-700'}`}>
+            {message}
+          </p>
+        )}
+      </div>
 
       <div>
-        <button disabled={sending} onClick={() => send(true)}>{sending ? 'Sending…' : 'Send test'}</button>
-        <button disabled={sending} onClick={() => send(false)}>{sending ? 'Sending…' : 'Send to segment'}</button>
+        <p className="field-label mb-1">Preview</p>
+        <p className="mb-3 text-sm text-muted">This is exactly what will be sent — subject and body wrapped in the branded shell.</p>
+        <iframe
+          title="Campaign email preview"
+          srcDoc={preview.html}
+          className="w-full max-w-[620px] rounded-2xl border border-line bg-white"
+          style={{ height: 500 }}
+        />
       </div>
-      {message && <p>{message}</p>}
-
-      <h2>Preview</h2>
-      <p>This is exactly what will be sent — subject and body wrapped in the branded shell.</p>
-      <iframe
-        title="Campaign email preview"
-        srcDoc={preview.html}
-        style={{ width: '100%', maxWidth: 620, height: 500, border: '1px solid #ccc' }}
-      />
     </div>
   )
 }

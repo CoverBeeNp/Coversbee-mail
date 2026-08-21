@@ -6,6 +6,13 @@ import type { OrderStatus } from '@/lib/types'
 
 const STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
 
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  received: 'badge-neutral',
+  dispatched: 'badge-gold',
+  delivered: 'badge-success',
+  cancelled: 'badge-danger',
+}
+
 type OrderDetail = {
   id: string
   blanxer_order_number: string | null
@@ -57,29 +64,56 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     if (body.ok) await loadOrder()
   }
 
-  if (loadError) return <p role="alert">{loadError}</p>
-  if (!order) return <p>Loading…</p>
+  if (loadError) return <div className="mx-auto max-w-3xl px-6 py-8"><p role="alert" className="alert-error">{loadError}</p></div>
+  if (!order) return <div className="mx-auto max-w-3xl px-6 py-8"><p className="text-muted">Loading…</p></div>
 
   return (
-    <div>
-      <h1>Order #{order.blanxer_order_number}</h1>
-      <p>Customer: {order.customers?.name} ({order.customers?.email ?? 'no email on file'})</p>
-      <p>Status: {order.status}</p>
-      <ul>
-        {order.parsed_items.map((item, i) => (
-          <li key={i}>{item.name}{item.variant ? ` (${item.variant})` : ''} x{item.qty} — रू {item.lineTotal}</li>
-        ))}
-      </ul>
-      <p>Total: रू {order.total ?? ''}</p>
-
-      <div>
-        {STATUSES.map((status) => (
-          <button key={status} disabled={sending !== null} onClick={() => sendStatus(status)}>
-            {sending === status ? 'Sending…' : `Send ${status[0].toUpperCase()}${status.slice(1)}`}
-          </button>
-        ))}
+    <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-ink">Order #{order.blanxer_order_number}</h1>
+          <p className="mt-1 text-sm text-muted">
+            {order.customers?.name ?? 'Unknown customer'} · {order.customers?.email ?? 'no email on file'}
+          </p>
+        </div>
+        <span className={STATUS_BADGE[order.status]}>{order.status}</span>
       </div>
-      {message && <p>{message}</p>}
+
+      <div className="card mb-6">
+        <ul className="divide-y divide-line">
+          {order.parsed_items.map((item, i) => (
+            <li key={i} className="flex justify-between py-2 text-sm">
+              <span className="text-ink-soft">{item.name}{item.variant ? ` (${item.variant})` : ''} × {item.qty}</span>
+              <span className="tabular-nums text-ink">रू {item.lineTotal}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex justify-between border-t border-line pt-3">
+          <span className="font-semibold text-ink">Total</span>
+          <span className="font-semibold tabular-nums text-ink">रू {order.total ?? '—'}</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <p className="field-label mb-3">Send status email</p>
+        <div className="flex flex-wrap gap-2">
+          {STATUSES.map((status) => (
+            <button
+              key={status}
+              disabled={sending !== null}
+              onClick={() => sendStatus(status)}
+              className={status === order.status ? 'btn-outline' : 'btn-primary'}
+            >
+              {sending === status ? 'Sending…' : `Send ${status[0].toUpperCase()}${status.slice(1)}`}
+            </button>
+          ))}
+        </div>
+        {message && (
+          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-red-600' : 'text-emerald-700'}`}>
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

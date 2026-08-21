@@ -13,6 +13,13 @@ type EmailLogRow = {
 
 const PAGE_SIZE = 200
 
+function formatSentAt(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
 export default function EmailLogPage() {
   const [rows, setRows] = useState<EmailLogRow[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -50,40 +57,52 @@ export default function EmailLogPage() {
   }
 
   return (
-    <div>
-      <h1>Send history</h1>
-      <p>Most recent {PAGE_SIZE} sends.</p>
-      {loadError && <p role="alert">{loadError}</p>}
-      <table>
-        <thead>
-          <tr>
-            <th>Sent at</th>
-            <th>Type</th>
-            <th>Template</th>
-            <th>Status</th>
-            <th>Error</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td>{r.sent_at}</td>
-              <td>{r.type}</td>
-              <td>{r.template_used}</td>
-              <td>{r.status}</td>
-              <td>{r.error_message}</td>
-              <td>
-                {r.status === 'failed' && r.type === 'transactional' && (
-                  <button disabled={retrying === r.id} onClick={() => retry(r.id)}>
-                    {retrying === r.id ? 'Retrying…' : 'Retry'}
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <h1 className="text-2xl font-bold text-ink">Send history</h1>
+      <p className="mb-6 text-sm text-muted">Most recent {PAGE_SIZE} sends.</p>
+      {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}
+
+      {rows.length > 0 ? (
+        <div className="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Sent at</th>
+                <th>Type</th>
+                <th>Template</th>
+                <th>Status</th>
+                <th>Error</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="whitespace-nowrap text-ink-soft">{formatSentAt(r.sent_at)}</td>
+                  <td className="text-ink-soft">{r.type}</td>
+                  <td className="text-ink-soft">{r.template_used}</td>
+                  <td>
+                    <span className={r.status === 'sent' ? 'badge-success' : 'badge-danger'}>{r.status}</span>
+                  </td>
+                  <td className="max-w-xs text-red-600">{r.error_message}</td>
+                  <td>
+                    {r.status === 'failed' && r.type === 'transactional' && (
+                      <button disabled={retrying === r.id} onClick={() => retry(r.id)} className="btn-outline">
+                        {retrying === r.id ? 'Retrying…' : 'Retry'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="card text-center">
+          <p className="text-ink-soft">No emails sent yet.</p>
+          <p className="mt-1 text-sm text-muted">Sends from orders and campaigns will show up here.</p>
+        </div>
+      )}
     </div>
   )
 }
