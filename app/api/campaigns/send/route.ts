@@ -20,15 +20,40 @@ export async function POST(request: NextRequest) {
 
   if (customerIds.length === 0) return NextResponse.json({ ok: false, error: 'No recipients matched' }, { status: 400 })
 
-  // Upsert (not insert) so re-sending — e.g. clicking "Send test" twice — doesn't
-  // crash on the (campaign_id, customer_id) primary key instead of just re-queuing.
-  await supabase
+  // Don't let a re-send (e.g. clicking "Send test" twice, or a second "Send to
+  // segment" after Task 8's drain has already marked some recipients 'sent')
+  // revert an already-sent row back to 'queued'. Only upsert customers who are
+  // new to this campaign or still queued/failed.
+  const { data: alreadySent, error: alreadySentError } = await supabase
     .from('campaign_recipients')
-    .upsert(
-      customerIds.map((customerId) => ({ campaign_id: campaignId, customer_id: customerId, status: 'queued' })),
-      { onConflict: 'campaign_id,customer_id' }
-    )
-  await supabase.from('campaigns').update({ status: 'sending' }).eq('id', campaignId)
+    .select('customer_id')
+    .eq('campaign_id', campaignId)
+    .eq('status', 'sent')
+    .in('customer_id', customerIds)
+  if (alreadySentError) {
+    return NextResponse.json({ ok: false, error: alreadySentError.message }, { status: 500 })
+  }
+  const alreadySentIds = new Set((alreadySent ?? []).map((r) => r.customer_id))
+  const toQueueIds = customerIds.filter((id) => !alreadySentIds.has(id))
 
-  return NextResponse.json({ ok: true, queued: customerIds.length })
+  if (toQueueIds.length > 0) {
+    // Upsert (not insert) so re-sending doesn't crash on the (campaign_id,
+    // customer_id) primary key instead of just re-queuing.
+    const { error: upsertError } = await supabase
+      .from('campaign_recipients')
+      .upsert(
+        toQueueIds.map((customerId) => ({ campaign_id: campaignId, customer_id: customerId, status: 'queued' })),
+        { onConflict: 'campaign_id,customer_id' }
+      )
+    if (upsertError) {
+      return NextResponse.json({ ok: false, error: upsertError.message }, { status: 500 })
+    }
+  }
+
+  const { error: statusError } = await supabase.from('campaigns').update({ status: 'sending' }).eq('id', campaignId)
+  if (statusError) {
+    return NextResponse.json({ ok: false, error: statusError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, queued: toQueueIds.length })
 }
