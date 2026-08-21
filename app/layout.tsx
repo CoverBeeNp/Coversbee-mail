@@ -48,7 +48,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <header className="flex items-center justify-between gap-4 bg-ink px-6 py-3">
           <div className="flex items-center gap-8">
             <Link href="/orders" className="flex items-center gap-2">
-              <Image src="/logo.png" alt="CoversBee" width={28} height={28} priority />
+              <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
               <span className="text-sm font-bold tracking-wide text-white">
                 CoversBee <span className="text-gold">Mail</span>
               </span>

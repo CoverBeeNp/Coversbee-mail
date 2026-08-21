@@ -32,7 +32,14 @@ function labelValue(lines: string[], label: string): string | null {
 }
 
 export function parseBlanxerOrder(rawText: string): ParsedOrder {
-  const lines = rawText.split('\n').map((l) => l.trim())
+  // A real browser copy-paste of the rendered order page (as opposed to a
+  // hand-typed or HTML-source version) inserts a blank line between every
+  // label/value pair and between other visually-separated blocks. Blank
+  // lines carry no information here, so stripping them up front makes every
+  // downstream adjacency check (labelValue, the cart-item loop, the
+  // subtotal/delivery/total lookups) work the same way regardless of
+  // whether the paste has them.
+  const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l !== '')
   const unmatchedFields: string[] = []
 
   const orderNumberMatch = rawText.match(/^#(\d+)/m)

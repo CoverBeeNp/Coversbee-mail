@@ -26,7 +26,7 @@ export default function LoginPage() {
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Image src="/logo.png" alt="CoversBee" width={56} height={56} />
+          <Image src="/logo.png" alt="CoversBee" width={56} height={54} />
           <div>
             <h1 className="text-xl font-bold text-ink">CoversBee Mail</h1>
             <p className="text-sm text-muted">Staff sign in</p>
