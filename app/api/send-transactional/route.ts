@@ -4,8 +4,15 @@ import { sendEmail } from '@/lib/zoho/client'
 import { renderTransactionalEmail } from '@/lib/zoho/templates'
 import type { OrderStatus } from '@/lib/types'
 
+const VALID_STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
+
 export async function POST(request: NextRequest) {
   const { orderId, status } = (await request.json()) as { orderId: string; status: OrderStatus }
+
+  if (!VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ ok: false, error: `Invalid status "${status}"` }, { status: 400 })
+  }
+
   const supabase = createServiceClient()
 
   const { data: order, error } = await supabase
@@ -16,14 +23,14 @@ export async function POST(request: NextRequest) {
   if (error || !order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 })
 
   const customer = (order as unknown as { customers: { name: string | null; email: string | null } | null }).customers
-  const { subject, html } = renderTransactionalEmail(status, {
-    blanxerOrderNumber: order.blanxer_order_number,
-    items: order.parsed_items as never,
-    total: order.total,
-    customerName: customer?.name ?? null,
-  })
 
   try {
+    const { subject, html } = renderTransactionalEmail(status, {
+      blanxerOrderNumber: order.blanxer_order_number,
+      items: (order.parsed_items ?? []) as never,
+      total: order.total,
+      customerName: customer?.name ?? null,
+    })
     if (!customer?.email) throw new Error('Customer has no email on file')
     const result = await sendEmail(supabase, { to: customer.email, subject, htmlBody: html })
     await supabase.from('orders').update({ status, status_updated_at: new Date().toISOString() }).eq('id', orderId)

@@ -18,16 +18,22 @@ type OrderDetail = {
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [sending, setSending] = useState<OrderStatus | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   async function loadOrder() {
     const supabase = createBrowserClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .select('id, blanxer_order_number, status, total, parsed_items, customers(name, email)')
       .eq('id', id)
       .single()
+    if (error || !data) {
+      setLoadError(error?.message ?? 'Order not found.')
+      return
+    }
+    setLoadError(null)
     setOrder(data as unknown as OrderDetail)
   }
 
@@ -51,6 +57,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     if (body.ok) await loadOrder()
   }
 
+  if (loadError) return <p role="alert">{loadError}</p>
   if (!order) return <p>Loading…</p>
 
   return (
