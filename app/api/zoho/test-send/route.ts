@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireStaff } from '@/lib/auth/requireStaff'
 import { sendEmail, ZohoAuthError, ZohoSendError } from '@/lib/zoho/client'
 
 export async function POST(request: NextRequest) {
+  const user = await requireStaff(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { to } = await request.json()
   const supabase = createServiceClient()
   try {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireStaff } from '@/lib/auth/requireStaff'
 import { sendEmail } from '@/lib/zoho/client'
 import { renderTransactionalEmail } from '@/lib/zoho/templates'
 import type { OrderStatus } from '@/lib/types'
@@ -7,6 +8,9 @@ import type { OrderStatus } from '@/lib/types'
 const VALID_STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
 
 export async function POST(request: NextRequest) {
+  const user = await requireStaff(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { orderId, status } = (await request.json()) as { orderId: string; status: OrderStatus }
 
   if (!VALID_STATUSES.includes(status)) {

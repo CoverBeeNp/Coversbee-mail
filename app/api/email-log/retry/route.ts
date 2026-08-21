@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireStaff } from '@/lib/auth/requireStaff'
 import { sendEmail } from '@/lib/zoho/client'
 import { renderTransactionalEmail } from '@/lib/zoho/templates'
 import type { OrderStatus } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
+  const user = await requireStaff(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { emailLogId } = (await request.json()) as { emailLogId: string }
   const supabase = createServiceClient()
 
@@ -32,6 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     if (!customer?.email) throw new Error('Customer has no email on file')
     const result = await sendEmail(supabase, { to: customer.email, subject, htmlBody: html })
+    await supabase.from('orders').update({ status: logRow.template_used, status_updated_at: new Date().toISOString() }).eq('id', order.id)
     await supabase.from('email_log').insert({
       order_id: order.id, customer_id: order.customer_id, type: 'transactional',
       template_used: logRow.template_used, status: 'sent', zoho_message_id: result.messageId,

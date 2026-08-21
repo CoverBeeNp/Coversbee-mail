@@ -1,22 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireStaff } from '@/lib/auth/requireStaff'
 import { resolveSegmentCustomerIds, type SegmentFilter } from '@/lib/segments/resolveSegment'
+import { sendEmail } from '@/lib/zoho/client'
+import { renderCampaignEmail } from '@/lib/zoho/templates'
 
 export async function POST(request: NextRequest) {
+  const user = await requireStaff(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { campaignId, testMode } = (await request.json()) as { campaignId: string; testMode: boolean }
   const supabase = createServiceClient()
 
-  const { data: campaign, error } = await supabase.from('campaigns').select('id, segment_filter').eq('id', campaignId).single()
+  const { data: campaign, error } = await supabase.from('campaigns').select('id, subject, body_template, segment_filter').eq('id', campaignId).single()
   if (error || !campaign) return NextResponse.json({ ok: false, error: 'Campaign not found' }, { status: 404 })
 
-  let customerIds: string[]
+  // Test-mode sends are handled entirely outside campaign_recipients: they
+  // never touch the throttled-drain queue that Task 7's real "Send to
+  // segment" path and the Edge Function drain function operate on. This
+  // avoids two failure modes that a shared-queue design would have: (1) a
+  // staff test address that happens to belong to a real customer getting
+  // permanently excluded from the real send via the alreadySent check below,
+  // and (2) a campaign's status flipping to 'sent' from the drain's "no
+  // queued rows remain" sweep after only a test went out. Test recipient
+  // lists are always small and fixed, so sending them synchronously here
+  // (no throttling) is safe and simpler than adding an is_test column.
   if (testMode) {
     const { data: testEmails } = await supabase.from('test_recipients').select('email')
-    const { data: matchingCustomers } = await supabase.from('customers').select('id').in('email', (testEmails ?? []).map((r) => r.email))
-    customerIds = (matchingCustomers ?? []).map((c) => c.id)
-  } else {
-    customerIds = await resolveSegmentCustomerIds(supabase, campaign.segment_filter as SegmentFilter)
+    const emails = (testEmails ?? []).map((r) => r.email)
+    if (emails.length === 0) return NextResponse.json({ ok: false, error: 'No test recipients configured' }, { status: 400 })
+
+    // email_log.customer_id is NOT NULL, so (as before this fix) a test
+    // recipient email only gets a logged send if it matches an existing
+    // customer record; the send itself is attempted regardless.
+    const { data: matchingCustomers } = await supabase.from('customers').select('id, email').in('email', emails)
+    const customerIdByEmail = new Map((matchingCustomers ?? []).map((c) => [c.email, c.id]))
+
+    const { subject, html } = renderCampaignEmail(campaign.subject, campaign.body_template)
+    let sent = 0
+    const errors: string[] = []
+    for (const to of emails) {
+      const matchedCustomerId = customerIdByEmail.get(to)
+      try {
+        const result = await sendEmail(supabase, { to, subject, htmlBody: html })
+        if (matchedCustomerId) {
+          await supabase.from('email_log').insert({
+            customer_id: matchedCustomerId, type: 'marketing', template_used: `${campaignId} (test)`, status: 'sent', zoho_message_id: result.messageId,
+          })
+        }
+        sent++
+      } catch (err) {
+        errors.push((err as Error).message)
+        if (matchedCustomerId) {
+          await supabase.from('email_log').insert({
+            customer_id: matchedCustomerId, type: 'marketing', template_used: `${campaignId} (test)`, status: 'failed', error_message: (err as Error).message,
+          })
+        }
+      }
+    }
+    if (sent === 0) return NextResponse.json({ ok: false, error: errors[0] ?? 'Test send failed' }, { status: 502 })
+    return NextResponse.json({ ok: true, queued: sent })
   }
+
+  const customerIds = await resolveSegmentCustomerIds(supabase, campaign.segment_filter as SegmentFilter)
 
   if (customerIds.length === 0) return NextResponse.json({ ok: false, error: 'No recipients matched' }, { status: 400 })
 

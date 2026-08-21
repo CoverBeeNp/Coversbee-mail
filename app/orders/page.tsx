@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServerClient } from '@/lib/supabase/server'
 
 export default async function OrdersPage() {
-  const supabase = createServiceClient()
+  const supabase = await createServerClient()
   const { data: orders } = await supabase
     .from('orders')
     .select('id, blanxer_order_number, status, total, customers(name)')
