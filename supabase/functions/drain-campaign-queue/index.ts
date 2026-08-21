@@ -68,9 +68,18 @@ Deno.serve(async (req) => {
   // Defense against the function being triggered out-of-schedule: it's
   // deployed with --no-verify-jwt (per the plan) so Supabase's platform-level
   // JWT check is off, and the handler must do its own check of the
-  // Authorization header the pg_cron job sends (see 0003_pg_cron_drain.sql,
-  // which sends `Bearer <service_role_key>`).
-  const expectedAuth = `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+  // Authorization header the pg_cron job sends (see 0004_fix_drain_cron_auth.sql,
+  // which sends `Bearer <DRAIN_FUNCTION_SECRET>` via a Vault-stored value).
+  //
+  // This deliberately does NOT compare against the platform-auto-injected
+  // SUPABASE_SERVICE_ROLE_KEY — on at least one real Supabase Cloud project,
+  // that value did not match the service_role key shown in the dashboard
+  // (which is otherwise valid and works for normal REST/PostgREST auth),
+  // causing every legitimate cron invocation to be rejected. Using our own
+  // independently-generated secret (set via `supabase secrets set
+  // DRAIN_FUNCTION_SECRET=...` and mirrored into Vault) avoids depending on
+  // that platform-internal value at all.
+  const expectedAuth = `Bearer ${Deno.env.get('DRAIN_FUNCTION_SECRET')}`
   if (req.headers.get('Authorization') !== expectedAuth) {
     return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401 })
   }

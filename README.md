@@ -36,18 +36,21 @@ The Supabase Edge Function (`supabase/functions/drain-campaign-queue`) runs in a
    npx supabase db push
    ```
 
-   This applies, in order: `0001_init_schema.sql` (core tables + RLS), `0002_zoho_state_and_settings.sql` (Zoho token cache, `system_status` banner flag, `test_recipients`), and `0003_pg_cron_drain.sql` (the hourly cron job that drains the campaign queue).
+   This applies, in order: `0001_init_schema.sql` (core tables + RLS), `0002_zoho_state_and_settings.sql` (Zoho token cache, `system_status` banner flag, `test_recipients`), `0003_pg_cron_drain.sql` (the original hourly cron job — superseded by 0004/0005 below, kept as historical record), `0004_fix_drain_cron_auth.sql` and `0005_rename_drain_secret.sql` (reschedule the cron job to use Supabase Vault instead of `alter database ... set`, which Supabase Cloud's `postgres` role isn't permitted to run — that only works in local Docker dev).
 
-3. **Deploy the Edge Function** with `--no-verify-jwt` — this function is triggered by `pg_cron`/`pg_net`, not by an end user's browser session, so it can't present a Supabase JWT. It instead checks its own `Authorization: Bearer <service_role_key>` header at the top of the handler, so don't skip that check even though platform-level JWT verification is off:
+3. **Deploy the Edge Function** with `--no-verify-jwt` — this function is triggered by `pg_cron`/`pg_net`, not by an end user's browser session, so it can't present a Supabase JWT. It instead checks its own `Authorization: Bearer <DRAIN_FUNCTION_SECRET>` header at the top of the handler, so don't skip that check even though platform-level JWT verification is off. Note this is a secret you generate yourself (below), not Supabase's own service_role key — on at least one real project, the Edge Function's auto-injected `SUPABASE_SERVICE_ROLE_KEY` didn't match the dashboard-displayed value, so the function deliberately doesn't depend on it:
 
    ```bash
    npx supabase functions deploy drain-campaign-queue --no-verify-jwt
    ```
 
-4. **Set the Edge Function's secrets:**
+4. **Generate an independent secret for the drain function's own auth**, and set it plus the Zoho secrets:
 
    ```bash
+   openssl rand -hex 32   # copy the output, this is DRAIN_FUNCTION_SECRET
+
    npx supabase secrets set \
+     DRAIN_FUNCTION_SECRET=<output from above> \
      ZOHO_CLIENT_ID=xxx \
      ZOHO_CLIENT_SECRET=xxx \
      ZOHO_REFRESH_TOKEN=xxx \
@@ -56,14 +59,14 @@ The Supabase Edge Function (`supabase/functions/drain-campaign-queue`) runs in a
      ZOHO_DAILY_CAP=200
    ```
 
-5. **Set the two GUCs `0003_pg_cron_drain.sql`'s cron job depends on.** The cron job calls `current_setting('app.settings.drain_function_url')` and `current_setting('app.settings.service_role_key')` to build its request to the Edge Function — if these are unset, `current_setting()` raises inside the cron job and the campaign queue silently never drains (no error surfaces anywhere in the app). Run against your project's database (via the SQL editor in the dashboard, or `psql`):
+5. **Store the function URL and that same secret in Supabase Vault**, which `0005_rename_drain_secret.sql`'s cron job reads from (Vault, not a database-level GUC, because Supabase Cloud's `postgres` role can't run `alter database ... set` on a custom parameter — see the comment in that migration). Run in the SQL editor:
 
    ```sql
-   alter database postgres set app.settings.drain_function_url = 'https://<your-project-ref>.supabase.co/functions/v1/drain-campaign-queue';
-   alter database postgres set app.settings.service_role_key = '<your-service-role-key>';
+   select vault.create_secret('https://<your-project-ref>.supabase.co/functions/v1/drain-campaign-queue', 'drain_function_url');
+   select vault.create_secret('<the DRAIN_FUNCTION_SECRET value from step 4>', 'drain_function_secret');
    ```
 
-   These take effect for new database sessions, so reconnect (or just wait for the next cron tick) before expecting them to apply.
+   If either secret was set under an old name while iterating (e.g. `drain_service_role_key` from an earlier setup attempt), delete it first: `select vault.delete_secret(id) from vault.secrets where name = 'drain_service_role_key';`.
 
 6. **Create staff accounts.** There's no self-serve signup UI; create users via the Supabase dashboard (Authentication → Users → Add user) or `supabase.auth.admin.createUser` with a one-off script, with email/password login enabled.
 
