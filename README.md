@@ -20,9 +20,9 @@ Copy `.env.example` to `.env.local` and fill in:
 | `ZOHO_ACCOUNT_ID` | The Zoho Mail account ID for the sending mailbox. |
 | `ZOHO_FROM_ADDRESS` | Sending address, e.g. `info@coversbee.com.np`. |
 | `ZOHO_HOURLY_CAP` | Max marketing emails the drain sends per rolling 1-hour window — matches Zoho Mail's real limit (50-500/hour, dynamic by account reputation; see "Zoho sending limits" below), not a daily figure. Default 40, conservative for a new/unproven sending account. Transactional sends aren't capped by this. |
-| `APP_URL` | The app's own public URL (e.g. `https://coversbee-mail.vercel.app`, or `http://localhost:3000` locally) — used to build the unsubscribe link embedded in every email footer. |
+| `NEXT_PUBLIC_APP_URL` | The app's own public URL (e.g. `https://coversbee-mail.vercel.app`, or `http://localhost:3000` locally) — used to build the logo image and unsubscribe link embedded in every email footer. `NEXT_PUBLIC_`-prefixed (not just server-side) because the campaign preview page renders emails in the browser, and a plain server-only var isn't visible there — see the comment in `lib/zoho/templates.ts`. |
 
-The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and has its own separate secrets, set via `supabase secrets set` (below) — it does not read `.env.local`, and needs its own copy of `APP_URL` too (its emails build their own unsubscribe links independently, since the shell is duplicated across the Node/Deno boundary — see the comment in that file).
+The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and has its own separate secrets, set via `supabase secrets set` (below) — it does not read `.env.local`, and needs its own copy of the app URL too, set there as plain `APP_URL` (its emails build their own logo/unsubscribe links independently, since the shell is duplicated across the Node/Deno boundary — see the comment in that file; the Deno function has no client/server split, so it doesn't need the `NEXT_PUBLIC_` prefix).
 
 ## Setting up a fresh Supabase project
 

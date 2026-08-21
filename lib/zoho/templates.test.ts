@@ -82,11 +82,11 @@ describe('renderTransactionalEmail', () => {
 })
 
 describe('email shell branding', () => {
-  it('includes the logo image sourced from APP_URL', () => {
+  it('includes the logo image sourced from NEXT_PUBLIC_APP_URL', () => {
     const { html } = renderTransactionalEmail('received', {
       blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test',
     })
-    expect(html).toContain(`src="${process.env.APP_URL ?? 'http://localhost:3000'}/logo.png"`)
+    expect(html).toContain(`src="${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/logo.png"`)
     expect(html).toContain('alt="CoversBee"')
   })
 })

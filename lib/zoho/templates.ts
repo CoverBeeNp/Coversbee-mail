@@ -21,8 +21,15 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// NEXT_PUBLIC_-prefixed (not just APP_URL) because this module is imported
+// by a Client Component (the campaign preview page) as well as server-side
+// API routes — a plain APP_URL only exists in process.env on the server, so
+// the browser-rendered preview would silently fall back to localhost for
+// the logo and unsubscribe links while the real, server-sent email got the
+// correct URL. The app's own public URL isn't sensitive, so exposing it to
+// the client is fine.
 function appBaseUrl(): string {
-  return (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 }
 
 // Builds a real unsubscribe link instead of a mailto — visiting it lands on
