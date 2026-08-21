@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       customerName: customer?.name ?? null,
       address: order.address,
       trackingUrl: order.tracking_url,
+      customerId: order.customer_id,
     })
     if (!customer?.email) throw new Error('Customer has no email on file')
     const result = await sendEmail(supabase, { to: customer.email, subject, htmlBody: html })

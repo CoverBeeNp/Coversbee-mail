@@ -5,7 +5,7 @@ Internal staff tool for two things:
 - **Transactional order emails** — paste a Blanxer order, save it, and send "received / dispatched / delivered / cancelled" status emails to the customer.
 - **Marketing campaigns** — draft an email, preview it, test-send it to a fixed staff list, then send it to a customer segment. Sends are queued and drained hourly (throttled to a daily cap) by a Supabase Edge Function on a `pg_cron` schedule.
 
-Staff auth is Supabase email/password (no self-serve signup). All app and API routes require a logged-in session; Postgres Row Level Security is a second layer of defense.
+Staff auth is Supabase email/password (no self-serve signup). All app and API routes require a logged-in session except `/unsubscribe` and `/api/unsubscribe`, which are deliberately public — they're reached from links in emails sent to customers, not staff. Postgres Row Level Security is a second layer of defense on the authenticated routes.
 
 ## Environment variables
 
@@ -20,8 +20,9 @@ Copy `.env.example` to `.env.local` and fill in:
 | `ZOHO_ACCOUNT_ID` | The Zoho Mail account ID for the sending mailbox. |
 | `ZOHO_FROM_ADDRESS` | Sending address, e.g. `info@coversbee.com.np`. |
 | `ZOHO_DAILY_CAP` | Max marketing emails the hourly drain sends per rolling UTC day. Transactional sends aren't capped. |
+| `APP_URL` | The app's own public URL (e.g. `https://coversbee-mail.vercel.app`, or `http://localhost:3000` locally) — used to build the unsubscribe link embedded in every email footer. |
 
-The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and has its own separate secrets, set via `supabase secrets set` (below) — it does not read `.env.local`.
+The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and has its own separate secrets, set via `supabase secrets set` (below) — it does not read `.env.local`, and needs its own copy of `APP_URL` too (its emails build their own unsubscribe links independently, since the shell is duplicated across the Node/Deno boundary — see the comment in that file).
 
 ## Setting up a fresh Supabase project
 

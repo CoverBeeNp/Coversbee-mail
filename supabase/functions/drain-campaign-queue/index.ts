@@ -14,14 +14,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const DAILY_CAP = Number(Deno.env.get('ZOHO_DAILY_CAP') ?? '200')
 
-// Mirrors renderCampaignEmail()/shell() in lib/zoho/templates.ts. Campaign
+// Mirrors renderCampaignEmail()/shell()/unsubscribeUrl() in
+// lib/zoho/templates.ts — kept in sync manually across the Node/Deno
+// runtime boundary (see the file-level comment above). Campaign
 // body_template is authored as inner body HTML only (see the "Body HTML"
 // textarea in app/campaigns/new/page.tsx) — it must be wrapped in the same
-// branded shell (and unsubscribe link) that transactional email and the
-// zoho test-send route use, not sent raw.
-// Mirrors lib/zoho/templates.ts's shell() — kept in sync manually across the
-// Node/Deno runtime boundary (see the file-level comment above).
-function shell(bodyHtml: string): string {
+// branded shell (and a real per-recipient unsubscribe link, not a mailto)
+// that transactional email and the zoho test-send route use, not sent raw.
+function unsubscribeUrl(customerId: string): string {
+  const base = (Deno.env.get('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '')
+  return `${base}/unsubscribe?customer=${encodeURIComponent(customerId)}`
+}
+
+function shell(bodyHtml: string, customerId: string): string {
   return `
   <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#fafaf8;">
     <div style="background:#0a0a0a; color:#fbb336; padding:20px; text-align:center; font-size:18px; font-weight:700; letter-spacing:0.02em;">
@@ -29,13 +34,13 @@ function shell(bodyHtml: string): string {
     </div>
     <div style="background:#ffffff; padding:24px; color:#0a0a0a;">${bodyHtml}</div>
     <div style="padding:16px; font-size:12px; color:#746f63; text-align:center;">
-      coversbee.com.np — <a href="mailto:info@coversbee.com.np?subject=Unsubscribe" style="color:#e29a1e;">Unsubscribe</a>
+      coversbee.com.np — <a href="${unsubscribeUrl(customerId)}" style="color:#e29a1e;">Unsubscribe</a>
     </div>
   </div>`
 }
 
-function renderCampaignEmail(subject: string, bodyHtml: string): { subject: string; html: string } {
-  return { subject, html: shell(bodyHtml) }
+function renderCampaignEmail(subject: string, bodyHtml: string, customerId: string): { subject: string; html: string } {
+  return { subject, html: shell(bodyHtml, customerId) }
 }
 
 async function getAccessToken(supabase: ReturnType<typeof createClient>): Promise<string> {
@@ -171,7 +176,7 @@ Deno.serve(async (req) => {
       if (!customer?.email) throw new Error('Customer has no email on file')
       if (!token) throw tokenError ?? new Error('Zoho OAuth refresh failed')
 
-      const { subject, html } = renderCampaignEmail(campaign.subject, campaign.body_template)
+      const { subject, html } = renderCampaignEmail(campaign.subject, campaign.body_template, row.customer_id)
       const res = await fetch(`https://mail.zoho.com/api/accounts/${Deno.env.get('ZOHO_ACCOUNT_ID')}/messages`, {
         method: 'POST',
         headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },

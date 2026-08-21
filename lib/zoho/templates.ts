@@ -20,11 +20,23 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// Builds a real unsubscribe link instead of a mailto — visiting it lands on
+// a confirmation page (app/unsubscribe/page.tsx) that only mutates
+// subscribed_to_marketing on an explicit POST, never on the GET page load
+// itself, since some corporate email scanners pre-fetch links and a
+// GET-that-mutates would silently unsubscribe people. Falls back to a plain
+// link with no customer id for contexts with no specific recipient yet
+// (e.g. the campaign builder's preview).
+function unsubscribeUrl(customerId?: string): string {
+  const base = (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  return customerId ? `${base}/unsubscribe?customer=${encodeURIComponent(customerId)}` : `${base}/unsubscribe`
+}
+
 // Once the app is deployed to a public URL, replace the text wordmark below
 // with `<img src="https://<your-domain>/logo.png" width="32" height="32" ... />`
 // — email clients need a publicly reachable image URL, which doesn't exist
 // pre-deployment, so this stays text-only for now.
-function shell(bodyHtml: string): string {
+function shell(bodyHtml: string, customerId?: string): string {
   return `
   <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#fafaf8;">
     <div style="background:#0a0a0a; color:#fbb336; padding:20px; text-align:center; font-size:18px; font-weight:700; letter-spacing:0.02em;">
@@ -32,7 +44,7 @@ function shell(bodyHtml: string): string {
     </div>
     <div style="background:#ffffff; padding:24px; color:#0a0a0a; line-height:1.5;">${bodyHtml}</div>
     <div style="padding:16px; font-size:12px; color:#746f63; text-align:center;">
-      coversbee.com.np — <a href="mailto:info@coversbee.com.np?subject=Unsubscribe" style="color:#e29a1e;">Unsubscribe</a>
+      coversbee.com.np — <a href="${unsubscribeUrl(customerId)}" style="color:#e29a1e;">Unsubscribe</a>
     </div>
   </div>`
 }
@@ -50,6 +62,7 @@ type TransactionalOrder = {
   customerName: string | null
   address?: string | null
   trackingUrl?: string | null
+  customerId?: string | null
 }
 
 function orderNumberText(order: TransactionalOrder): string {
@@ -77,7 +90,7 @@ function renderReceived(order: TransactionalOrder): { subject: string; html: str
     <p>We are excited to get your order to you as soon as possible and will keep you updated on the status of your shipment. If you have any questions or concerns, please don&rsquo;t hesitate to contact us.</p>
     <p>Thank you again for your support. Happy shopping!</p>
     <p>Warm Regards,<br>CoversBee</p>
-  `)
+  `, order.customerId ?? undefined)
   return { subject, html }
 }
 
@@ -95,7 +108,7 @@ function renderDispatched(order: TransactionalOrder): { subject: string; html: s
     ${trackingLine}</p>
     <p>Thank you for choosing us!</p>
     <p>Best,<br>CoversBee</p>
-  `)
+  `, order.customerId ?? undefined)
   return { subject, html }
 }
 
@@ -108,7 +121,7 @@ function renderDelivered(order: TransactionalOrder): { subject: string; html: st
     <p><strong>Delivery Details:</strong><br>Delivery Address: ${addressText(order)}</p>
     <p>We hope you enjoy your purchase! If you have any questions or concerns, please write to our customer care at <a href="mailto:${CUSTOMER_CARE_EMAIL}">${CUSTOMER_CARE_EMAIL}</a>. Our associates will contact you as soon as possible to resolve any issues you have with your order.</p>
     <p>Best,<br>CoversBee</p>
-  `)
+  `, order.customerId ?? undefined)
   return { subject, html }
 }
 
@@ -124,7 +137,7 @@ function renderCancelled(order: TransactionalOrder): { subject: string; html: st
     <p>If any payment was made for this order, it will be refunded in full. If you did not request this cancellation or have any questions, please write to our customer care at <a href="mailto:${CUSTOMER_CARE_EMAIL}">${CUSTOMER_CARE_EMAIL}</a> and we&rsquo;ll be happy to help.</p>
     <p>We hope to serve you again soon.</p>
     <p>Best,<br>CoversBee</p>
-  `)
+  `, order.customerId ?? undefined)
   return { subject, html }
 }
 
@@ -139,6 +152,6 @@ export function renderTransactionalEmail(status: OrderStatus, order: Transaction
   return RENDERERS[status](order)
 }
 
-export function renderCampaignEmail(subject: string, bodyHtml: string): { subject: string; html: string } {
-  return { subject, html: shell(bodyHtml) }
+export function renderCampaignEmail(subject: string, bodyHtml: string, customerId?: string): { subject: string; html: string } {
+  return { subject, html: shell(bodyHtml, customerId) }
 }

@@ -36,11 +36,13 @@ export async function POST(request: NextRequest) {
     const { data: matchingCustomers } = await supabase.from('customers').select('id, email').in('email', emails)
     const customerIdByEmail = new Map((matchingCustomers ?? []).map((c) => [c.email, c.id]))
 
-    const { subject, html } = renderCampaignEmail(campaign.subject, campaign.body_template)
     let sent = 0
     const errors: string[] = []
     for (const to of emails) {
       const matchedCustomerId = customerIdByEmail.get(to)
+      // Rendered per-recipient (rather than once, reused) because the
+      // unsubscribe link is customer-specific.
+      const { subject, html } = renderCampaignEmail(campaign.subject, campaign.body_template, matchedCustomerId)
       try {
         const result = await sendEmail(supabase, { to, subject, htmlBody: html })
         if (matchedCustomerId) {

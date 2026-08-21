@@ -84,4 +84,24 @@ describe('renderCampaignEmail', () => {
     const { html } = renderCampaignEmail('Subject', '<p>Hello <strong>World</strong></p>')
     expect(html).toContain('<p>Hello <strong>World</strong></p>')
   })
+
+  it('includes a real unsubscribe link for the given customer, not a mailto', () => {
+    const { html } = renderCampaignEmail('Subject', '<p>Body</p>', 'cust-123')
+    expect(html).toContain('/unsubscribe?customer=cust-123')
+    expect(html).not.toContain('mailto:info@coversbee.com.np?subject=Unsubscribe')
+  })
+
+  it('falls back to a plain unsubscribe link with no customer id (preview mode)', () => {
+    const { html } = renderCampaignEmail('Subject', '<p>Body</p>')
+    expect(html).toContain('/unsubscribe"')
+  })
+})
+
+describe('unsubscribe link on transactional emails', () => {
+  it('includes the customer id when provided', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test', customerId: 'cust-456',
+    })
+    expect(html).toContain('/unsubscribe?customer=cust-456')
+  })
 })

@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     customerName: customer?.name ?? null,
     address: order.address,
     trackingUrl: order.tracking_url,
+    customerId: order.customer_id,
   })
 
   try {
