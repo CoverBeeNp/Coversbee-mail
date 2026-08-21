@@ -21,6 +21,10 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+function appBaseUrl(): string {
+  return (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+}
+
 // Builds a real unsubscribe link instead of a mailto — visiting it lands on
 // a confirmation page (app/unsubscribe/page.tsx) that only mutates
 // subscribed_to_marketing on an explicit POST, never on the GET page load
@@ -29,19 +33,16 @@ export function escapeHtml(value: string): string {
 // link with no customer id for contexts with no specific recipient yet
 // (e.g. the campaign builder's preview).
 function unsubscribeUrl(customerId?: string): string {
-  const base = (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  const base = appBaseUrl()
   return customerId ? `${base}/unsubscribe?customer=${encodeURIComponent(customerId)}` : `${base}/unsubscribe`
 }
 
-// Once the app is deployed to a public URL, replace the text wordmark below
-// with `<img src="https://<your-domain>/logo.png" width="32" height="32" ... />`
-// — email clients need a publicly reachable image URL, which doesn't exist
-// pre-deployment, so this stays text-only for now.
 function shell(bodyHtml: string, customerId?: string): string {
   return `
   <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#fafaf8;">
-    <div style="background:#0a0a0a; color:#fbb336; padding:20px; text-align:center; font-size:18px; font-weight:700; letter-spacing:0.02em;">
-      CoversBee
+    <div style="background:#0a0a0a; padding:20px; text-align:center;">
+      <img src="${appBaseUrl()}/logo.png" alt="CoversBee" width="40" height="39" style="display:block; margin:0 auto 8px; border:0;" />
+      <span style="color:#fbb336; font-size:18px; font-weight:700; letter-spacing:0.02em;">CoversBee</span>
     </div>
     <div style="background:#ffffff; padding:24px; color:#0a0a0a; line-height:1.5;">${bodyHtml}</div>
     <div style="padding:16px; font-size:12px; color:#746f63; text-align:center;">

@@ -27,16 +27,20 @@ const HOURLY_CAP = Number(Deno.env.get('ZOHO_HOURLY_CAP') ?? '40')
 // textarea in app/campaigns/new/page.tsx) — it must be wrapped in the same
 // branded shell (and a real per-recipient unsubscribe link, not a mailto)
 // that transactional email and the zoho test-send route use, not sent raw.
+function appBaseUrl(): string {
+  return (Deno.env.get('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '')
+}
+
 function unsubscribeUrl(customerId: string): string {
-  const base = (Deno.env.get('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '')
-  return `${base}/unsubscribe?customer=${encodeURIComponent(customerId)}`
+  return `${appBaseUrl()}/unsubscribe?customer=${encodeURIComponent(customerId)}`
 }
 
 function shell(bodyHtml: string, customerId: string): string {
   return `
   <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#fafaf8;">
-    <div style="background:#0a0a0a; color:#fbb336; padding:20px; text-align:center; font-size:18px; font-weight:700; letter-spacing:0.02em;">
-      CoversBee
+    <div style="background:#0a0a0a; padding:20px; text-align:center;">
+      <img src="${appBaseUrl()}/logo.png" alt="CoversBee" width="40" height="39" style="display:block; margin:0 auto 8px; border:0;" />
+      <span style="color:#fbb336; font-size:18px; font-weight:700; letter-spacing:0.02em;">CoversBee</span>
     </div>
     <div style="background:#ffffff; padding:24px; color:#0a0a0a;">${bodyHtml}</div>
     <div style="padding:16px; font-size:12px; color:#746f63; text-align:center;">

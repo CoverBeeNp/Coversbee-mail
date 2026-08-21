@@ -81,6 +81,16 @@ describe('renderTransactionalEmail', () => {
   })
 })
 
+describe('email shell branding', () => {
+  it('includes the logo image sourced from APP_URL', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test',
+    })
+    expect(html).toContain(`src="${process.env.APP_URL ?? 'http://localhost:3000'}/logo.png"`)
+    expect(html).toContain('alt="CoversBee"')
+  })
+})
+
 describe('escapeHtml', () => {
   it('escapes the five reserved HTML characters', () => {
     expect(escapeHtml(`<a href="x">&'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&#39;&lt;/a&gt;')
