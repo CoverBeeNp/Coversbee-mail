@@ -1,11 +1,14 @@
 # CoversBee Mail
 
-Internal staff tool for two things:
+**Live app:** [coversbee-mail.vercel.app](https://coversbee-mail.vercel.app)
 
-- **Transactional order emails** — paste a Blanxer order, save it, and send "received / dispatched / delivered / cancelled" status emails to the customer.
-- **Marketing campaigns** — draft an email, preview it, test-send it to a fixed staff list, then send it to a customer segment. Sends are queued and drained hourly (throttled to a daily cap) by a Supabase Edge Function on a `pg_cron` schedule.
+Internal tool for CoversBee staff to manage customer communication around orders and marketing, without living inside Blanxer (the store platform) or a generic email client:
 
-Staff auth is Supabase email/password (no self-serve signup). All app and API routes require a logged-in session except `/unsubscribe` and `/api/unsubscribe`, which are deliberately public — they're reached from links in emails sent to customers, not staff. Postgres Row Level Security is a second layer of defense on the authenticated routes.
+- **Order tracking & status emails** — keep a record of each Blanxer order and its customer, and notify the customer by email as the order moves through received → dispatched → delivered (or gets cancelled). Orders can be brought in either by pasting a Blanxer order page or, now, with a one-click "Sync from Blanxer" that pulls new orders straight from the store's API.
+- **Marketing campaigns** — write an email, preview it, test it on staff first, then send it to a chosen customer segment, with sending paced automatically so it doesn't trip Zoho's spam-burst protections.
+- **Send history** — every email attempt (order updates and campaigns alike) is logged with its outcome, and a failed send can be retried right from that log instead of digging through Zoho.
+
+Staff sign in with a Supabase account; there's no public signup, and every page and API route requires a login except the customer-facing unsubscribe link.
 
 ## Environment variables
 
