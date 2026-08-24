@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import type { OrderStatus } from '@/lib/types'
+import { SyncBlanxerButton } from './SyncBlanxerButton'
 
 const STATUS_BADGE: Record<OrderStatus, string> = {
   received: 'badge-neutral',
@@ -23,7 +24,10 @@ export default async function OrdersPage() {
           <h1 className="text-2xl font-bold text-ink">Orders</h1>
           <p className="text-sm text-muted">Paste an order from Blanxer to get started.</p>
         </div>
-        <Link href="/orders/new" className="btn-gold">+ New order</Link>
+        <div className="flex items-start gap-3">
+          <SyncBlanxerButton />
+          <Link href="/orders/new" className="btn-gold">+ New order</Link>
+        </div>
       </div>
 
       {orders && orders.length > 0 ? (

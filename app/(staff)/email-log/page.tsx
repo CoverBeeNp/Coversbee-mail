@@ -24,6 +24,7 @@ export default function EmailLogPage() {
   const [rows, setRows] = useState<EmailLogRow[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [retryError, setRetryError] = useState<string | null>(null)
 
   async function load() {
     const supabase = createBrowserClient()
@@ -47,11 +48,16 @@ export default function EmailLogPage() {
 
   async function retry(id: string) {
     setRetrying(id)
-    await fetch('/api/email-log/retry', {
+    setRetryError(null)
+    const res = await fetch('/api/email-log/retry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ emailLogId: id }),
     })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      setRetryError(body?.error ?? 'Retry failed')
+    }
     setRetrying(null)
     await load()
   }
@@ -61,6 +67,7 @@ export default function EmailLogPage() {
       <h1 className="text-2xl font-bold text-ink">Send history</h1>
       <p className="mb-6 text-sm text-muted">Most recent {PAGE_SIZE} sends.</p>
       {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}
+      {retryError && <p role="alert" className="alert-error mb-4">{retryError}</p>}
 
       {rows.length > 0 ? (
         <div className="table-shell">
@@ -86,7 +93,7 @@ export default function EmailLogPage() {
                   </td>
                   <td className="max-w-xs text-red-600">{r.error_message}</td>
                   <td>
-                    {r.status === 'failed' && r.type === 'transactional' && (
+                    {r.status === 'failed' && (
                       <button disabled={retrying === r.id} onClick={() => retry(r.id)} className="btn-outline">
                         {retrying === r.id ? 'Retrying…' : 'Retry'}
                       </button>
