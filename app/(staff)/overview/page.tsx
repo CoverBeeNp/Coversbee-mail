@@ -21,14 +21,29 @@ function formatSentAt(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const FAILED_SENDS_RANGES = [7, 30, 90] as const
+const DEFAULT_FAILED_SENDS_RANGE_DAYS = 30
+
 // Pulled out of the page component so the "impure function during render"
 // lint rule (aimed at client component re-renders) doesn't apply here —
 // this Server Component runs fresh per request regardless.
-function thirtyDaysAgoIso(): string {
-  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+function daysAgoIso(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 }
 
-export default async function OverviewPage() {
+// Only the "Failed sends" section is date-ranged — the order status counts
+// above it are all-time and this control doesn't touch them.
+function parseRangeDays(raw: string | string[] | undefined): number {
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  return (FAILED_SENDS_RANGES as readonly number[]).includes(value) ? value : DEFAULT_FAILED_SENDS_RANGE_DAYS
+}
+
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const rangeDays = parseRangeDays((await searchParams).days)
   const supabase = await createServerClient()
 
   const { data: orders } = await supabase.from('orders').select('status')
@@ -65,7 +80,7 @@ export default async function OverviewPage() {
     .from('email_log')
     .select('id, type, template_used, sent_at, error_message')
     .eq('status', 'failed')
-    .gte('sent_at', thirtyDaysAgoIso())
+    .gte('sent_at', daysAgoIso(rangeDays))
     .order('sent_at', { ascending: false })
     .limit(10)
 
@@ -116,8 +131,21 @@ export default async function OverviewPage() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <p className="field-label">Failed sends — last 30 days</p>
-          <Link href="/email-log" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
+          <p className="field-label">Failed sends — last {rangeDays} days</p>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1">
+              {FAILED_SENDS_RANGES.map((days) => (
+                <Link
+                  key={days}
+                  href={days === DEFAULT_FAILED_SENDS_RANGE_DAYS ? '/overview' : `/overview?days=${days}`}
+                  className={days === rangeDays ? 'btn-outline pointer-events-none border-gold-dark text-gold-dark' : 'btn-outline'}
+                >
+                  {days}d
+                </Link>
+              ))}
+            </div>
+            <Link href="/email-log" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
+          </div>
         </div>
         {failedSends && failedSends.length > 0 ? (
           <div className="table-shell">
@@ -143,7 +171,7 @@ export default async function OverviewPage() {
             </table>
           </div>
         ) : (
-          <div className="card text-center text-sm text-muted">No failed sends in the last 30 days.</div>
+          <div className="card text-center text-sm text-muted">No failed sends in the last {rangeDays} days.</div>
         )}
       </section>
     </div>

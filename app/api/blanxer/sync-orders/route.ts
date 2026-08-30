@@ -57,7 +57,35 @@ export async function POST(request: NextRequest) {
   if (existingError) return NextResponse.json({ ok: false, error: existingError.message }, { status: 500 })
   const existingIds = new Set((existingRows ?? []).map((r) => r.blanxer_id))
 
-  const newOrders = listed.filter((o) => !existingIds.has(o._id))
+  const notYetSynced = listed.filter((o) => !existingIds.has(o._id))
+
+  // A manually-pasted order (app/(staff)/orders/actions.ts) has
+  // blanxer_order_number set but blanxer_id left null — the blanxer_id check
+  // above can't see it, so without this second check it would come back as
+  // "new" here and get inserted as a duplicate row with the same order
+  // number. Look up remaining candidates by order number among orders that
+  // don't already have a blanxer_id (a row that already has one was already
+  // handled above), and treat a match as "this exists, just link it" rather
+  // than importing a second copy.
+  const candidateOrderNumbers = notYetSynced.map((o) => String(o.order_number))
+  const { data: manualMatches, error: manualMatchError } = candidateOrderNumbers.length
+    ? await supabase.from('orders').select('id, blanxer_order_number').in('blanxer_order_number', candidateOrderNumbers).is('blanxer_id', null)
+    : { data: [], error: null }
+  if (manualMatchError) return NextResponse.json({ ok: false, error: manualMatchError.message }, { status: 500 })
+  const manualOrderIdByNumber = new Map((manualMatches ?? []).map((r) => [r.blanxer_order_number, r.id]))
+
+  const newOrders: typeof notYetSynced = []
+  let backfilled = 0
+  for (const o of notYetSynced) {
+    const manualOrderId = manualOrderIdByNumber.get(String(o.order_number))
+    if (manualOrderId) {
+      const { error: backfillError } = await supabase.from('orders').update({ blanxer_id: o._id }).eq('id', manualOrderId)
+      if (backfillError) return NextResponse.json({ ok: false, error: backfillError.message }, { status: 500 })
+      backfilled++
+    } else {
+      newOrders.push(o)
+    }
+  }
 
   let imported = 0
   const errors: string[] = []
@@ -74,5 +102,11 @@ export async function POST(request: NextRequest) {
 
   await supabase.from('blanxer_sync_state').update({ last_synced_at: now.toISOString() }).eq('id', true)
 
-  return NextResponse.json({ ok: true, imported, skipped: listed.length - newOrders.length, errors })
+  return NextResponse.json({
+    ok: true,
+    imported,
+    backfilled,
+    skipped: listed.length - newOrders.length - backfilled,
+    errors,
+  })
 }
