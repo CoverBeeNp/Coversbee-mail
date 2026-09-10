@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
-import type { OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
 
-const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
+const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
 const ORDER_STATUS_BADGE: Record<OrderStatus, string> = {
   received: 'badge-neutral',
   dispatched: 'badge-gold',
+  out_for_delivery: 'badge-gold',
   delivered: 'badge-success',
   cancelled: 'badge-danger',
 }
@@ -47,7 +48,7 @@ export default async function OverviewPage({
   const supabase = await createServerClient()
 
   const { data: orders } = await supabase.from('orders').select('status')
-  const statusCounts: Record<OrderStatus, number> = { received: 0, dispatched: 0, delivered: 0, cancelled: 0 }
+  const statusCounts: Record<OrderStatus, number> = { received: 0, dispatched: 0, out_for_delivery: 0, delivered: 0, cancelled: 0 }
   for (const o of orders ?? []) {
     const status = o.status as OrderStatus
     if (status in statusCounts) statusCounts[status]++
@@ -94,7 +95,7 @@ export default async function OverviewPage({
           {ORDER_STATUSES.map((status) => (
             <div key={status} className="card text-center">
               <p className="text-2xl font-bold text-ink tabular-nums">{statusCounts[status]}</p>
-              <span className={`${ORDER_STATUS_BADGE[status]} mt-2`}>{status}</span>
+              <span className={`${ORDER_STATUS_BADGE[status]} mt-2`}>{ORDER_STATUS_LABEL[status]}</span>
             </div>
           ))}
         </div>

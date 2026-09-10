@@ -48,7 +48,7 @@ describe('renderTransactionalEmail', () => {
     expect(html.toLowerCase()).toContain('text')
   })
 
-  for (const status of ['received', 'dispatched', 'delivered', 'cancelled'] as const) {
+  for (const status of ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled'] as const) {
     it(`has a template for status "${status}"`, () => {
       const { subject } = renderTransactionalEmail(status, { blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test' })
       expect(subject.length).toBeGreaterThan(0)
@@ -57,13 +57,13 @@ describe('renderTransactionalEmail', () => {
 
   it('renders distinct copy for each status', () => {
     const order = { blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test' }
-    const rendered = (['received', 'dispatched', 'delivered', 'cancelled'] as const).map(
+    const rendered = (['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled'] as const).map(
       (status) => renderTransactionalEmail(status, order)
     )
     const subjects = new Set(rendered.map((r) => r.subject))
     const htmls = new Set(rendered.map((r) => r.html))
-    expect(subjects.size).toBe(4)
-    expect(htmls.size).toBe(4)
+    expect(subjects.size).toBe(5)
+    expect(htmls.size).toBe(5)
   })
 
   it('escapes HTML in customer name and item name/variant so it cannot inject markup', () => {

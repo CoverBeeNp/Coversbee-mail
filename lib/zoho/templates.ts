@@ -121,6 +121,21 @@ function renderDispatched(order: TransactionalOrder): { subject: string; html: s
   return { subject, html }
 }
 
+function renderOutForDelivery(order: TransactionalOrder): { subject: string; html: string } {
+  const orderNumber = orderNumberText(order)
+  const subject = `Your Order Is Out for Delivery - #${orderNumber}`
+  const html = shell(`
+    <p>Hi ${customerNameText(order)},</p>
+    <p>Your order #${orderNumber} is out for delivery and will arrive <strong>today</strong>!</p>
+    <p><strong>Delivery Details:</strong><br>
+    Delivery Address: ${addressText(order)}<br>
+    Carrier: ${CARRIER_NAME}</p>
+    <p>Please make sure someone is available to receive it. If you have any questions, write to us at <a href="mailto:${CUSTOMER_CARE_EMAIL}">${CUSTOMER_CARE_EMAIL}</a>.</p>
+    <p>Best,<br>CoversBee</p>
+  `, order.customerId ?? undefined)
+  return { subject, html }
+}
+
 function renderDelivered(order: TransactionalOrder): { subject: string; html: string } {
   const orderNumber = orderNumberText(order)
   const subject = `Your Order Has Been Delivered!`
@@ -158,6 +173,7 @@ function renderCancelled(order: TransactionalOrder): { subject: string; html: st
 const RENDERERS: Record<OrderStatus, (order: TransactionalOrder) => { subject: string; html: string }> = {
   received: renderReceived,
   dispatched: renderDispatched,
+  out_for_delivery: renderOutForDelivery,
   delivered: renderDelivered,
   cancelled: renderCancelled,
 }

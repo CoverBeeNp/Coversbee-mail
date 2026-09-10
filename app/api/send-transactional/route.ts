@@ -5,7 +5,7 @@ import { sendEmail } from '@/lib/zoho/client'
 import { renderTransactionalEmail } from '@/lib/zoho/templates'
 import type { OrderStatus } from '@/lib/types'
 
-const VALID_STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
+const VALID_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
 export async function POST(request: NextRequest) {
   const user = await requireStaff(request)

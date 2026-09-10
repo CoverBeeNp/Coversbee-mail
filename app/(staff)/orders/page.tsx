@@ -2,17 +2,18 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
-import type { OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
 import { SyncBlanxerButton } from './SyncBlanxerButton'
 
 const STATUS_BADGE: Record<OrderStatus, string> = {
   received: 'badge-neutral',
   dispatched: 'badge-gold',
+  out_for_delivery: 'badge-gold',
   delivered: 'badge-success',
   cancelled: 'badge-danger',
 }
 
-const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
+const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
 type Order = {
   id: string
@@ -90,7 +91,7 @@ export default function OrdersPage() {
           <option value="all">All statuses</option>
           {ORDER_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {status[0].toUpperCase() + status.slice(1)}
+              {ORDER_STATUS_LABEL[status]}
             </option>
           ))}
         </select>
@@ -118,7 +119,7 @@ export default function OrdersPage() {
                     </Link>
                   </td>
                   <td className="text-ink-soft">{customerName(o) ?? '—'}</td>
-                  <td><span className={STATUS_BADGE[o.status]}>{o.status}</span></td>
+                  <td><span className={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</span></td>
                   <td className="tabular-nums text-ink-soft">{o.total != null ? `रू ${o.total}` : '—'}</td>
                 </tr>
               ))}

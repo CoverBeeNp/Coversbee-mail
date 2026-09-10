@@ -2,13 +2,14 @@
 import { use, useEffect, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase/client'
 import type { ParsedItem } from '@/lib/parser/blanxerParser'
-import type { OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
 
-const STATUSES: OrderStatus[] = ['received', 'dispatched', 'delivered', 'cancelled']
+const STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
 const STATUS_BADGE: Record<OrderStatus, string> = {
   received: 'badge-neutral',
   dispatched: 'badge-gold',
+  out_for_delivery: 'badge-gold',
   delivered: 'badge-success',
   cancelled: 'badge-danger',
 }
@@ -76,7 +77,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {order.customers?.name ?? 'Unknown customer'} · {order.customers?.email ?? 'no email on file'}
           </p>
         </div>
-        <span className={STATUS_BADGE[order.status]}>{order.status}</span>
+        <span className={STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>
       </div>
 
       <div className="card mb-6">
@@ -104,7 +105,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               onClick={() => sendStatus(status)}
               className={status === order.status ? 'btn-outline' : 'btn-primary'}
             >
-              {sending === status ? 'Sending…' : `Send ${status[0].toUpperCase()}${status.slice(1)}`}
+              {sending === status ? 'Sending…' : `Send ${ORDER_STATUS_LABEL[status]}`}
             </button>
           ))}
         </div>
