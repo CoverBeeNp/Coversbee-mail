@@ -2,17 +2,10 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { ORDER_STATUS_LABEL, itemVariantLabel, type OrderItem, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, itemVariantLabel, type OrderItem, type OrderStatus } from '@/lib/types'
+import { formatAmount } from '@/lib/format'
 
 const STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
-
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  received: 'badge-neutral',
-  dispatched: 'badge-gold',
-  out_for_delivery: 'badge-gold',
-  delivered: 'badge-success',
-  cancelled: 'badge-danger',
-}
 
 // The usual next step, offered as the main button. The rest stay available
 // because orders don't always move in a straight line.
@@ -87,7 +80,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {order.customers?.name ?? 'Unknown customer'} · {order.customers?.email ?? 'no email on file'}
           </p>
         </div>
-        {order.status && <span className={STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>}
+        {order.status && <span className={ORDER_STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>}
       </div>
 
       <div className="card mb-6">
@@ -97,14 +90,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             return (
             <li key={i} className="flex justify-between py-2 text-sm">
               <span className="text-ink-soft">{item.name}{variant ? ` (${variant})` : ''} × {item.qty}</span>
-              <span className="tabular-nums text-ink">रू {item.lineTotal}</span>
+              <span className="tabular-nums text-ink">{formatAmount(item.lineTotal)}</span>
             </li>
             )
           })}
         </ul>
         <div className="mt-3 flex justify-between border-t border-line pt-3">
           <span className="font-semibold text-ink">Total</span>
-          <span className="font-semibold tabular-nums text-ink">रू {order.total ?? '—'}</span>
+          <span className="font-semibold tabular-nums text-ink">{order.total != null ? formatAmount(order.total) : '—'}</span>
         </div>
       </div>
 
@@ -123,7 +116,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
         {message && (
-          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-red-600' : 'text-emerald-700'}`}>
+          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-negative' : 'text-positive'}`}>
             {message}
           </p>
         )}

@@ -1,6 +1,7 @@
 import { previousMonthKey } from '@/lib/statements/monthKey'
 
-export type Todo = { label: string; detail: string; count: number | null; href: string }
+export type TodoGroup = 'Orders' | 'Emails' | 'Finance'
+export type Todo = { group: TodoGroup; label: string; count: number | null; href: string }
 
 export type TodoInput = {
   received: number
@@ -9,10 +10,6 @@ export type TodoInput = {
   failedSends: number
   statementMonths: string[]
   now: Date
-}
-
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
 }
 
 function monthLabel(month: string): string {
@@ -24,52 +21,24 @@ function monthLabel(month: string): string {
   })
 }
 
-// Most urgent first. Items with nothing to do are left out, so an empty list
-// really does mean the day's work is done.
+// Grouped by area, in working order. Anything with nothing to do is left out,
+// so an empty list really does mean the day's work is done.
 export function buildTodos(input: TodoInput): Todo[] {
-  const todos: Todo[] = []
+  const candidates: (Todo & { due: boolean })[] = [
+    { group: 'Orders', label: 'Dispatch', count: input.received, href: '/orders?status=received', due: input.received > 0 },
+    { group: 'Orders', label: 'Follow up', count: input.dispatched, href: '/orders?status=dispatched', due: input.dispatched > 0 },
+    { group: 'Orders', label: 'Confirm delivery', count: input.outForDelivery, href: '/orders?status=out_for_delivery', due: input.outForDelivery > 0 },
+    { group: 'Emails', label: 'Fix failed emails', count: input.failedSends, href: '/email-log', due: input.failedSends > 0 },
+  ]
 
-  if (input.failedSends > 0) {
-    todos.push({
-      label: 'Fix failed emails',
-      detail: `${plural(input.failedSends, 'email')} failed in the last 30 days`,
-      count: input.failedSends,
-      href: '/email-log',
-    })
-  }
-  if (input.received > 0) {
-    todos.push({
-      label: 'Dispatch orders',
-      detail: `${plural(input.received, 'order')} waiting to be sent out`,
-      count: input.received,
-      href: '/orders?status=received',
-    })
-  }
-  if (input.dispatched > 0) {
-    todos.push({
-      label: 'Follow up on dispatched orders',
-      detail: `${plural(input.dispatched, 'order')} on the way`,
-      count: input.dispatched,
-      href: '/orders?status=dispatched',
-    })
-  }
-  if (input.outForDelivery > 0) {
-    todos.push({
-      label: 'Confirm deliveries',
-      detail: `${plural(input.outForDelivery, 'order')} out for delivery`,
-      count: input.outForDelivery,
-      href: '/orders?status=out_for_delivery',
-    })
-  }
   const lastMonth = previousMonthKey(input.now.toISOString().slice(0, 7))
-  if (!input.statementMonths.includes(lastMonth)) {
-    todos.push({
-      label: `Generate the ${monthLabel(lastMonth)} statement`,
-      detail: 'Locks in last month’s figures',
-      count: null,
-      href: '/finance/statements',
-    })
-  }
+  candidates.push({
+    group: 'Finance',
+    label: `${monthLabel(lastMonth)} statement`,
+    count: null,
+    href: '/finance/statements',
+    due: !input.statementMonths.includes(lastMonth),
+  })
 
-  return todos
+  return candidates.filter((todo) => todo.due).map(({ group, label, count, href }) => ({ group, label, count, href }))
 }

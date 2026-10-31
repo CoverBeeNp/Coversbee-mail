@@ -91,7 +91,7 @@ export default function EmailLogPage() {
                   <td>
                     <span className={r.status === 'sent' ? 'badge-success' : 'badge-danger'}>{r.status}</span>
                   </td>
-                  <td className="max-w-xs text-red-600">{r.error_message}</td>
+                  <td className="max-w-xs text-negative">{r.error_message}</td>
                   <td>
                     {r.status === 'failed' && r.type === 'transactional' && (
                       <button disabled={retrying === r.id} onClick={() => retry(r.id)} className="btn-outline">

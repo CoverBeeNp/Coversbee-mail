@@ -15,20 +15,23 @@ describe('buildTodos', () => {
     expect(buildTodos(quiet)).toEqual([])
   })
 
-  it('puts failed emails first and links orders to a filtered list', () => {
+  it('groups work by area and links orders to a filtered list', () => {
     const todos = buildTodos({ ...quiet, received: 2, failedSends: 1 })
-    expect(todos.map((t) => t.href)).toEqual(['/email-log', '/orders?status=received'])
-    expect(todos[0].detail).toBe('1 email failed in the last 30 days')
-    expect(todos[1].detail).toBe('2 orders waiting to be sent out')
+    expect(todos.map((t) => [t.group, t.href])).toEqual([
+      ['Orders', '/orders?status=received'],
+      ['Emails', '/email-log'],
+    ])
+    expect(todos[0].count).toBe(2)
   })
 
   it('asks for last month\'s statement when it is missing', () => {
-    const todos = buildTodos({ ...quiet, statementMonths: [] })
-    expect(todos).toEqual([expect.objectContaining({ label: 'Generate the September 2026 statement', href: '/finance/statements' })])
+    expect(buildTodos({ ...quiet, statementMonths: [] })).toEqual([
+      { group: 'Finance', label: 'September 2026 statement', count: null, href: '/finance/statements' },
+    ])
   })
 
   it('handles the turn of the year', () => {
     const todos = buildTodos({ ...quiet, statementMonths: [], now: new Date('2027-01-05T12:00:00Z') })
-    expect(todos[0].label).toBe('Generate the December 2026 statement')
+    expect(todos[0].label).toBe('December 2026 statement')
   })
 })

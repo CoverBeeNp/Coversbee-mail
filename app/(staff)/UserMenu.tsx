@@ -47,7 +47,7 @@ export function UserMenu({ email }: { email: string | null }) {
         <span className="min-w-0 truncate text-sm font-medium text-white">{name}</span>
       </button>
       {open && (
-        <div role="menu" className="absolute bottom-full right-0 z-20 mb-2 w-56 rounded-xl border border-line bg-surface p-2 shadow-lg md:left-0 md:right-auto">
+        <div role="menu" className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-line bg-surface p-2 shadow-lg md:bottom-full md:left-0 md:right-auto md:top-auto md:mb-2 md:mt-0">
           {email && <p className="truncate px-3 py-2 text-xs text-muted">{email}</p>}
           <button
             type="button"

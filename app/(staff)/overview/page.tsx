@@ -5,21 +5,26 @@ import { fetchAllRows } from '@/lib/supabase/fetchAllRows'
 import { getBankBalance } from '@/lib/bankBalance/bankBalance'
 import { listStatements } from '@/lib/statements/statements'
 import { monthlySummary } from '@/lib/analytics/monthly'
-import { formatAmount } from '@/lib/format'
-import { buildTodos } from '@/lib/overview/todos'
-import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
+import { formatAmount, formatDate } from '@/lib/format'
+import { buildTodos, type TodoGroup } from '@/lib/overview/todos'
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, blanxerStatusLabel, type OrderStatus } from '@/lib/types'
+import { StatTile, signedTone } from '../StatTile'
 
 const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
-const ORDER_STATUS_BADGE: Record<OrderStatus, string> = {
-  received: 'badge-neutral',
-  dispatched: 'badge-gold',
-  out_for_delivery: 'badge-gold',
-  delivered: 'badge-success',
-  cancelled: 'badge-danger',
-}
-
 const FAILED_SENDS_DAYS = 30
+const TODO_GROUPS: TodoGroup[] = ['Orders', 'Emails', 'Finance']
+const OPEN_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery']
+const OPEN_ORDER_LIMIT = 8
+
+type OpenOrder = {
+  id: string
+  blanxer_order_number: string | null
+  status: OrderStatus
+  blanxer_status: string | null
+  total: number | null
+  customers: { name: string | null } | null
+}
 
 type OrderRow = { total: number | null; delivery_charge: number | null; status: string; created_at: string }
 type ExpenseRow = { amount: number; expense_date: string }
@@ -37,7 +42,7 @@ function currentTime(): Date {
 
 function formatSyncedAt(iso: string | undefined): string {
   if (!iso) return 'never'
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  return `${formatDate(iso)}, ${new Date(iso).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
 }
 
 export default async function TodayPage() {
@@ -46,8 +51,14 @@ export default async function TodayPage() {
   const supabase = await createServerClient()
   const service = createServiceClient()
 
-  const [{ data: trackedOrders }, { count: failedSends }, { data: syncState }] = await Promise.all([
+  const [{ data: trackedOrders }, { data: openOrders }, { count: failedSends }, { data: syncState }] = await Promise.all([
     supabase.from('orders').select('status').not('status', 'is', null),
+    supabase
+      .from('orders')
+      .select('id, blanxer_order_number, status, blanxer_status, total, customers(name)')
+      .in('status', OPEN_STATUSES)
+      .order('created_at', { ascending: true })
+      .limit(OPEN_ORDER_LIMIT),
     supabase
       .from('email_log')
       .select('id', { count: 'exact', head: true })
@@ -83,67 +94,87 @@ export default async function TodayPage() {
     now,
   })
 
-  const money = [
-    { label: 'Revenue this month', value: thisMonth?.revenue ?? 0, tone: 'text-gold-dark' },
-    { label: 'Expenses this month', value: thisMonth?.expenses ?? 0, tone: 'text-ink' },
-    { label: 'Profit this month', value: thisMonth?.profit ?? 0, tone: (thisMonth?.profit ?? 0) < 0 ? 'text-red-700' : 'text-emerald-700' },
-    { label: 'Bank balance', value: bankBalance, tone: 'text-ink' },
-  ]
+  const profit = thisMonth?.profit ?? 0
+  const openCount = OPEN_STATUSES.reduce((sum, status) => sum + statusCounts[status], 0)
 
   return (
-    <div className="page space-y-8">
-      <div>
+    <div className="page space-y-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-bold text-ink">Today</h1>
-        <p className="mt-1 text-sm text-muted">Last synced from Blanxer: {formatSyncedAt(syncState?.last_synced_at)}</p>
+        <p className="text-sm text-muted">Last synced {formatSyncedAt(syncState?.last_synced_at)}</p>
       </div>
 
-      <section>
-        <p className="field-label mb-3">To do</p>
-        {todos.length > 0 ? (
-          <div className="table-shell divide-y divide-line">
-            {todos.map((todo) => (
-              <Link key={todo.href} href={todo.href} className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-paper">
-                <span>
-                  <span className="block font-semibold text-ink">{todo.label}</span>
-                  <span className="block text-sm text-muted">{todo.detail}</span>
-                </span>
-                <span className="flex items-center gap-3">
-                  {todo.count !== null && <span className="badge-gold tabular-nums">{todo.count}</span>}
-                  <span aria-hidden className="text-muted">→</span>
-                </span>
-              </Link>
-            ))}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile label="Revenue this month" value={formatAmount(thisMonth?.revenue ?? 0)} />
+        <StatTile label="Expenses this month" value={formatAmount(thisMonth?.expenses ?? 0)} />
+        <StatTile label="Profit this month" value={formatAmount(profit)} tone={signedTone(profit)} />
+        <StatTile label="Bank balance" value={formatAmount(bankBalance)} />
+      </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <section className="table-shell">
+          <h2 className="border-b border-line px-5 py-3 font-semibold text-ink">To do</h2>
+          {todos.length > 0 ? (
+            TODO_GROUPS.filter((group) => todos.some((todo) => todo.group === group)).map((group) => (
+              <div key={group} className="border-b border-line px-2 py-2 last:border-b-0">
+                <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted">{group}</p>
+                {todos.filter((todo) => todo.group === group).map((todo) => (
+                  <Link key={todo.href} href={todo.href} className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-sm text-ink transition-colors hover:bg-paper">
+                    <span className="truncate">{todo.label}</span>
+                    {todo.count !== null && <span className="font-semibold tabular-nums">{todo.count}</span>}
+                  </Link>
+                ))}
+              </div>
+            ))
+          ) : (
+            <p className="px-5 py-4 text-sm text-muted">Nothing needs doing right now.</p>
+          )}
+        </section>
+
+        <section className="table-shell lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-line px-5 py-3">
+            <h2 className="font-semibold text-ink">Open orders ({openCount})</h2>
+            <Link href="/orders" className="text-sm font-medium text-gold-dark hover:underline">All orders</Link>
           </div>
-        ) : (
-          <div className="card text-center text-sm text-muted">Nothing needs doing right now.</div>
-        )}
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <p className="field-label">Money</p>
-          <Link href="/finance" className="text-sm font-medium text-gold-dark hover:underline">Open finance</Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {money.map((item) => (
-            <div key={item.label} className="card">
-              <p className="text-sm text-muted">{item.label}</p>
-              <p className={`mt-1 text-2xl font-bold tabular-nums ${item.tone}`}>{formatAmount(item.value)}</p>
+          {openOrders && openOrders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Blanxer status</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(openOrders as unknown as OpenOrder[]).map((order) => (
+                    <tr key={order.id}>
+                      <td>
+                        <Link href={`/orders/${order.id}`} className="font-semibold text-ink hover:text-gold-dark">#{order.blanxer_order_number}</Link>
+                      </td>
+                      <td className="text-ink-soft">{order.customers?.name ?? '—'}</td>
+                      <td><span className={ORDER_STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span></td>
+                      <td className="text-ink-soft">{blanxerStatusLabel(order.blanxer_status)}</td>
+                      <td className="tabular-nums text-ink-soft">{order.total != null ? formatAmount(order.total) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      </section>
+          ) : (
+            <p className="px-5 py-4 text-sm text-muted">No open orders.</p>
+          )}
+        </section>
+      </div>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <p className="field-label">Orders</p>
-          <Link href="/orders" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="table-shell">
+        <div className="grid grid-cols-2 divide-x divide-line sm:grid-cols-3 lg:grid-cols-5">
           {ORDER_STATUSES.map((status) => (
-            <Link key={status} href={`/orders?status=${status}`} className="card block text-center transition-colors hover:border-gold-dark">
-              <p className="text-2xl font-bold tabular-nums text-ink">{statusCounts[status]}</p>
-              <span className={`${ORDER_STATUS_BADGE[status]} mt-2`}>{ORDER_STATUS_LABEL[status]}</span>
+            <Link key={status} href={`/orders?status=${status}`} className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-paper">
+              <span className={ORDER_STATUS_BADGE[status]}>{ORDER_STATUS_LABEL[status]}</span>
+              <span className="font-semibold tabular-nums text-ink">{statusCounts[status]}</span>
             </Link>
           ))}
         </div>

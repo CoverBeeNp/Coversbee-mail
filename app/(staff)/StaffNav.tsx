@@ -12,12 +12,20 @@ export function StaffNav({ email }: { email: string | null }) {
 
   return (
     <aside className="z-10 flex shrink-0 flex-col bg-ink md:sticky md:top-0 md:h-screen md:w-60 print:hidden">
-      <Link href="/overview" className="flex items-center gap-2 px-5 py-4">
-        <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
-        <span className="text-sm font-bold tracking-wide text-white">
-          Coversbee <span className="text-gold">Data</span>
-        </span>
-      </Link>
+      <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:space-y-3 md:px-3 md:pb-2 md:pt-4">
+        <Link href="/overview" className="flex items-center gap-2 md:px-2">
+          <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
+          <span className="text-sm font-bold tracking-wide text-white">
+            Coversbee <span className="text-gold">Data</span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-2 md:block">
+          <SyncBlanxerButton />
+          <div className="md:hidden">
+            <UserMenu email={email} />
+          </div>
+        </div>
+      </div>
 
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:gap-5 md:overflow-y-auto md:py-2">
         {NAV_GROUPS.map((group) => (
@@ -43,8 +51,7 @@ export function StaffNav({ email }: { email: string | null }) {
         ))}
       </nav>
 
-      <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-2 md:block md:space-y-3 md:p-4">
-        <SyncBlanxerButton />
+      <div className="hidden border-t border-white/10 p-3 md:block">
         <UserMenu email={email} />
       </div>
     </aside>

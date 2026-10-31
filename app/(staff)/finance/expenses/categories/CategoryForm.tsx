@@ -38,7 +38,7 @@ export function CategoryForm() {
         />
         <button type="submit" className="btn-primary" disabled={pending}>Add</button>
       </div>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-negative">{error}</p> : null}
     </form>
   )
 }

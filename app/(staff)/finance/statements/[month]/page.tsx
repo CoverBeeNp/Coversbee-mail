@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import { getStatement } from '@/lib/statements/statements'
 import { DeleteStatementButton } from './DeleteStatementButton'
 import { PrintButton } from './PrintButton'
-import { formatAmount, formatPercent } from '@/lib/format'
+import { formatAmount, formatDate, formatPercent } from '@/lib/format'
 import { toCsv } from '@/lib/csv'
 import { ExportCsvButton } from '../../ExportCsvButton'
+import { StatTile, signedTone } from '../../../StatTile'
 
 function formatMonthLabel(month: string): string {
   const [year, monthNum] = month.split('-').map(Number)
@@ -57,7 +58,7 @@ export default async function StatementDetailPage({ params }: { params: Promise<
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="mb-1 text-2xl font-bold text-ink">{formatMonthLabel(statement.month)}</h1>
-          <p className="text-sm text-muted">Generated {statement.generatedAt.slice(0, 10)} — figures locked at generation time.</p>
+          <p className="text-sm text-muted">Generated {formatDate(statement.generatedAt)} — figures locked at generation time.</p>
         </div>
         <div className="flex gap-2 print:hidden">
           <ExportCsvButton filename={`statement-${statement.month}.csv`} csv={csv} />
@@ -66,29 +67,11 @@ export default async function StatementDetailPage({ params }: { params: Promise<
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="card">
-          <p className="text-sm text-muted">Revenue</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-gold-dark">{formatAmount(statement.revenue)}</p>
-          {revenueDelta && <p className="mt-1 text-xs text-muted">{revenueDelta}</p>}
-        </div>
-        <div className="card">
-          <p className="text-sm text-muted">Expenses</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{formatAmount(statement.expenses)}</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-muted">Profit</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${statement.profit < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-            {formatAmount(statement.profit)}
-          </p>
-          {profitDelta && <p className="mt-1 text-xs text-muted">{profitDelta}</p>}
-        </div>
-        <div className="card">
-          <p className="text-sm text-muted">Margin</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${statement.marginPercent < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-            {formatPercent(statement.marginPercent)}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Revenue" value={formatAmount(statement.revenue)} note={revenueDelta} />
+        <StatTile label="Expenses" value={formatAmount(statement.expenses)} />
+        <StatTile label="Profit" value={formatAmount(statement.profit)} tone={signedTone(statement.profit)} note={profitDelta} />
+        <StatTile label="Margin" value={formatPercent(statement.marginPercent)} tone={signedTone(statement.marginPercent)} />
       </div>
 
       <section className="card">
@@ -106,7 +89,7 @@ export default async function StatementDetailPage({ params }: { params: Promise<
           </div>
           <div>
             <p className="text-sm text-muted">As of</p>
-            <p className="mt-1 text-xl font-bold tabular-nums">{statement.balanceAsOf.slice(0, 10)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{formatDate(statement.balanceAsOf)}</p>
           </div>
         </div>
         {statement.openingBalance === null && (

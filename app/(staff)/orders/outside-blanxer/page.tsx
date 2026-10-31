@@ -2,7 +2,7 @@ import { listManualOrders, getNextManualOrderNumber } from '@/lib/orders/manualO
 import { listDeviceModelOptions } from '@/lib/orders/deviceModelOptions'
 import { DeleteManualOrderButton } from './DeleteManualOrderButton'
 import { AddOrderModal } from './AddOrderModal'
-import { formatAmount } from '@/lib/format'
+import { formatAmount, formatDate } from '@/lib/format'
 import { toCsv } from '@/lib/csv'
 import { ExportCsvButton } from '../../finance/ExportCsvButton'
 
@@ -68,7 +68,7 @@ export default async function OrdersPage() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td className="whitespace-nowrap">{order.orderDate.slice(0, 10)}</td>
+                  <td className="whitespace-nowrap">{formatDate(order.orderDate)}</td>
                   <td className="whitespace-nowrap">{order.orderNumber}</td>
                   <td>{order.customerName}</td>
                   <td>{order.customerPhone}</td>

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { listStatements } from '@/lib/statements/statements'
 import { GenerateStatementForm } from './GenerateStatementForm'
-import { formatAmount, formatPercent } from '@/lib/format'
+import { formatAmount, formatDate, formatPercent } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,11 +48,11 @@ export default async function StatementsPage() {
                   <td>{formatMonthLabel(statement.month)}</td>
                   <td className="tabular-nums">{formatAmount(statement.revenue)}</td>
                   <td className="tabular-nums">{formatAmount(statement.expenses)}</td>
-                  <td className={`tabular-nums ${statement.profit < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                  <td className={`tabular-nums ${statement.profit < 0 ? 'text-negative' : 'text-positive'}`}>
                     {formatAmount(statement.profit)}
                   </td>
                   <td className="tabular-nums">{formatPercent(statement.marginPercent)}</td>
-                  <td className="text-muted">{statement.generatedAt.slice(0, 10)}</td>
+                  <td className="text-muted">{formatDate(statement.generatedAt)}</td>
                   <td>
                     <Link href={`/finance/statements/${statement.month}`} className="btn-outline">View</Link>
                   </td>

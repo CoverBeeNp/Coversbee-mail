@@ -162,7 +162,7 @@ export function ManualOrderForm({
       </div>
       {error ? <p className="alert-error">{error}</p> : null}
       {duplicateWarning && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-gold/50 bg-gold/10 px-4 py-3 text-sm text-ink-soft">
           <p>
             This looks like it might be the same order as <strong>{duplicateWarning.orderNumber}</strong>, placed{' '}
             {duplicateWarning.orderDate.slice(0, 10)} — same phone number and amount. Submitting again will add a second, separate order.

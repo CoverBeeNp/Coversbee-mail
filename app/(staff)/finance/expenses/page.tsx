@@ -5,7 +5,7 @@ import { paymentLeaderboard } from '@/lib/analytics/paymentLeaderboard'
 import { DeleteExpenseButton } from './DeleteExpenseButton'
 import { PaymentLeaderboard } from './PaymentLeaderboard'
 import { AddExpenseModal } from './AddExpenseModal'
-import { formatAmount } from '@/lib/format'
+import { formatAmount, formatDate } from '@/lib/format'
 import { toCsv } from '@/lib/csv'
 import { ExportCsvButton } from '../ExportCsvButton'
 
@@ -61,7 +61,7 @@ export default async function ExpensesPage() {
             <tbody>
               {expenses.map((expense) => (
                 <tr key={expense.id}>
-                  <td className="whitespace-nowrap">{expense.expenseDate}</td>
+                  <td className="whitespace-nowrap">{formatDate(expense.expenseDate)}</td>
                   <td>{expense.paidTo}</td>
                   <td>{expense.paidBy}</td>
                   <td>{categoryName.get(expense.categoryId) ?? 'Unknown'}</td>

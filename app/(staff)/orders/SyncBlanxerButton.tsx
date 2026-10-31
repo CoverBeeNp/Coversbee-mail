@@ -57,8 +57,8 @@ export function SyncBlanxerButton() {
   }, [sync])
 
   return (
-    <div className="space-y-1">
-      <button onClick={sync} disabled={syncing} className="btn-gold w-full">
+    <div className="space-y-1 md:px-0">
+      <button onClick={sync} disabled={syncing} className="btn-gold whitespace-nowrap md:w-full">
         {syncing ? 'Syncing…' : 'Sync from Blanxer'}
       </button>
       {result && <p className="text-xs text-white/60">{result}</p>}

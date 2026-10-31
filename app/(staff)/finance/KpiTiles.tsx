@@ -1,6 +1,7 @@
 import type { MonthlySummary } from '@/lib/analytics/monthly'
 import { profitMarginPercent } from '@/lib/analytics/margin'
 import { formatAmount, formatPercent } from '@/lib/format'
+import { StatTile, signedTone } from '../StatTile'
 
 function formatMonthLabel(month: string): string {
   const [year, monthNum] = month.split('-').map(Number)
@@ -15,28 +16,6 @@ function formatRangeLabel(monthly: MonthlySummary[], hasFilter: boolean): string
   if (!hasFilter) return 'All time'
   if (monthly.length === 1) return formatMonthLabel(monthly[0].month)
   return `${formatMonthLabel(monthly[0].month)} to ${formatMonthLabel(monthly[monthly.length - 1].month)}`
-}
-
-function Tile({
-  label,
-  value,
-  tone,
-  format,
-}: {
-  label: string
-  value: number
-  tone: 'gold' | 'ink' | 'profit'
-  format?: (value: number) => string
-}) {
-  const valueClass =
-    tone === 'gold' ? 'text-gold-dark' : tone === 'profit' ? (value < 0 ? 'text-red-700' : 'text-emerald-700') : 'text-ink'
-
-  return (
-    <div className="card">
-      <p className="text-sm text-muted">{label}</p>
-      <p className={`mt-1 text-3xl font-bold tabular-nums ${valueClass}`}>{format ? format(value) : formatAmount(value)}</p>
-    </div>
-  )
 }
 
 // Tiles always sum across whatever range of months was passed in — "All
@@ -65,11 +44,11 @@ export function KpiTiles({ monthly, hasFilter }: { monthly: MonthlySummary[]; ha
   return (
     <div>
       <p className="mb-3 text-sm text-muted">{formatRangeLabel(monthly, hasFilter)}</p>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile label="Revenue" value={summary.revenue} tone="gold" />
-        <Tile label="Expenses" value={summary.expenses} tone="ink" />
-        <Tile label="Profit" value={summary.profit} tone="profit" />
-        <Tile label="Margin" value={margin} tone="profit" format={formatPercent} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile label="Revenue" value={formatAmount(summary.revenue)} />
+        <StatTile label="Expenses" value={formatAmount(summary.expenses)} />
+        <StatTile label="Profit" value={formatAmount(summary.profit)} tone={signedTone(summary.profit)} />
+        <StatTile label="Margin" value={formatPercent(margin)} tone={signedTone(margin)} />
       </div>
     </div>
   )

@@ -22,7 +22,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       <StaffNav email={user?.email ?? null} />
       <div className="min-w-0 flex-1">
         {status && !status.zoho_connected && (
-          <div className="bg-red-600 px-4 py-2 text-center text-sm font-medium text-white print:hidden">
+          <div className="bg-negative px-4 py-2 text-center text-sm font-medium text-white print:hidden">
             Email sending is broken — reconnect Zoho.
             {status.last_error ? ` (${status.last_error})` : ""}
           </div>

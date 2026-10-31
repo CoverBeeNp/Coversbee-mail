@@ -35,6 +35,8 @@ npm run build                         # production build
 
 **Navigation.** The sidebar is `app/(staff)/StaffNav.tsx`, driven by `lib/navigation.ts`. Page containers use the `.page` and `.page-narrow` classes. The Today page (`/overview`) gets its to-do list from `lib/overview/todos.ts`.
 
+**One way of showing data.** Colours are tokens in `app/globals.css`, with `positive` and `negative` for status. Charts take theirs from `lib/chartTheme.ts`, where colour follows the measure. Headline figures use `StatTile`, amounts `formatAmount`, dates `formatDate`, and order statuses `ORDER_STATUS_BADGE`. Don't add raw Tailwind colours or hex values to pages. Customer emails keep their own styling.
+
 **Finance pages** live under `app/(staff)/finance`. Financial tables have RLS with no policies and no grants to `anon` or `authenticated`, so they are reached only by server code using the service role. Every export of a `'use server'` file must call `requireUser()` (`lib/auth/requireUser.ts`) first, because `proxy.ts` only covers the paths it lists; `lib/auth/serverFunctions.test.ts` enforces this, and its module list needs updating for any new server file. Revenue excludes the delivery charge. Monthly statements are frozen snapshots: never recompute a stored one.
 
 **More than 1000 rows.** PostgREST caps responses at 1000 rows. Use `lib/supabase/fetchAllRows.ts` for anything that must see every row; it throws on a failed page rather than returning partial data.

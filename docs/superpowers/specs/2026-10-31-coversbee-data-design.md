@@ -120,3 +120,7 @@ Decided after the data copy. Campaigns are removed from the app, because the sto
 Decided by the user after the data copy, replacing the rule that sync never changes `orders.status` and the 30-day re-check. Every sync lists the full history and fetches details only for orders whose `updated_at` changed, recorded in `orders.blanxer_updated_at` (migration 0013). `status` follows Blanxer through `lib/orders/workflowStatus.ts` with no email sent. Nothing is ever deleted. Returned maps to `cancelled` because the app has no returned status, and `blanxer_status` keeps the real value. Sync also runs every 15 minutes while the app is open.
 
 Migration 0009 turned out never to have been applied to production, so 0013 also adds `out_for_delivery`, safely if it already exists.
+
+## 12. Display and layout
+
+Orders shows the latest 50. Sync sits at the top of the sidebar and the profile at the bottom. Today is compact: four figures, a grouped to-do list beside open orders, and a status strip. One palette and one set of display helpers cover the whole app, and expense breakdown becomes a sorted bar chart.

@@ -28,7 +28,7 @@ export function DeleteCategoryButton({ id }: { id: string }) {
   return (
     <form onSubmit={handleSubmit}>
       <button type="submit" className="btn-outline" disabled={pending}>Delete</button>
-      {error ? <p className="mt-1 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="mt-1 text-sm text-negative">{error}</p> : null}
     </form>
   )
 }

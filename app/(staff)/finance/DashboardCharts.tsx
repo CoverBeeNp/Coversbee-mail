@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
-  PieChart, Pie, Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell,
 } from 'recharts'
 import type { MonthlySummary } from '@/lib/analytics/monthly'
 import { seasonality, type SeasonalityRow } from '@/lib/analytics/seasonality'
@@ -12,15 +11,9 @@ import type { DeviceModelPerformance } from '@/lib/analytics/deviceModels'
 import type { ColorPerformance } from '@/lib/analytics/colorPerformance'
 import type { ExpenseBreakdownRow } from '@/lib/analytics/expenseBreakdown'
 import { formatAmount } from '@/lib/format'
+import { AXIS_TICK, BAR_RADIUS_END, BAR_RADIUS_TOP, CHART } from '@/lib/chartTheme'
 
 const CALENDAR_MONTH_LABEL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const PIE_COLORS = [
-  '#fbb336', '#0a0a0a', '#746f63', '#e29a1e', '#2563eb',
-  '#7c3aed', '#059669', '#dc2626', '#0891b2', '#a16207',
-]
-const PROFIT_COLOR = '#059669'
-const PROFIT_NEGATIVE_COLOR = '#0a0a0a'
-const EXPENSES_COLOR = '#dc2626'
 const ALL_YEARS = 'all'
 
 type Metric = 'revenue' | 'unitsSold'
@@ -75,7 +68,7 @@ function SeasonalityTooltip({
   return (
     <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm shadow-sm">
       <p className="font-semibold">{row.label}</p>
-      <p className="text-gold-dark">{valueLabel}: {metric === 'revenue' ? formatAmount(row.average) : row.average.toLocaleString()}</p>
+      <p className="text-ink-soft">{valueLabel}: {metric === 'revenue' ? formatAmount(row.average) : row.average.toLocaleString()}</p>
       <p className="text-muted">{contextLabel}</p>
     </div>
   )
@@ -138,18 +131,14 @@ export function DashboardCharts({
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+              <CartesianGrid vertical={false} stroke={CHART.grid} />
+              <XAxis dataKey="month" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
+              <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} width={70} />
               <Tooltip formatter={(value: number) => formatAmount(value)} />
               <Legend />
-              <Bar dataKey="revenue" fill="#fbb336" />
-              <Bar dataKey="expenses" fill={EXPENSES_COLOR} />
-              <Bar dataKey="profit" fill={PROFIT_COLOR}>
-                {monthly.map((row, i) => (
-                  <Cell key={i} fill={row.profit < 0 ? PROFIT_NEGATIVE_COLOR : PROFIT_COLOR} />
-                ))}
-              </Bar>
+              <Bar dataKey="revenue" name="Revenue" fill={CHART.revenue} radius={BAR_RADIUS_TOP} />
+              <Bar dataKey="expenses" name="Expenses" fill={CHART.expenses} radius={BAR_RADIUS_TOP} />
+              <Bar dataKey="profit" name="Profit" fill={CHART.profit} radius={BAR_RADIUS_TOP} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -179,11 +168,11 @@ export function DashboardCharts({
             <>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={seasonalityData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" />
-                  <YAxis />
+                  <CartesianGrid vertical={false} stroke={CHART.grid} />
+                  <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
+                  <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} width={60} />
                   <Tooltip content={<SeasonalityTooltip metric={seasonalityMetric} year={seasonalityYear} />} />
-                  <Bar dataKey="average" fill="#fbb336">
+                  <Bar dataKey="average" fill={CHART.revenue} radius={BAR_RADIUS_TOP}>
                     {seasonalityData.map((row, i) => (
                       <Cell key={i} fillOpacity={row.years.length > 1 ? 1 : 0.4} />
                     ))}
@@ -204,14 +193,14 @@ export function DashboardCharts({
           {breakdown.length === 0 ? (
             <EmptyChart message="No expenses logged yet." />
           ) : (
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie data={breakdown} dataKey="total" nameKey="categoryName" outerRadius={90}>
-                  {breakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
+            <ResponsiveContainer width="100%" height={Math.max(200, breakdown.length * 36)}>
+              <BarChart data={[...breakdown].sort((a, b) => b.total - a.total)} layout="vertical">
+                <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} />
+                <YAxis dataKey="categoryName" type="category" width={150} tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
                 <Tooltip formatter={(value: number) => formatAmount(value)} />
-                <Legend layout="horizontal" align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: 12, lineHeight: '1.6' }} />
-              </PieChart>
+                <Bar dataKey="total" name="Spent" fill={CHART.expenses} radius={BAR_RADIUS_END} />
+              </BarChart>
             </ResponsiveContainer>
           )}
         </section>
@@ -228,11 +217,11 @@ export function DashboardCharts({
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(200, sortedColors.length * 40)}>
               <BarChart data={sortedColors} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="color" type="category" width={90} />
+                <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} />
+                <YAxis dataKey="color" type="category" width={90} tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
                 <Tooltip formatter={(value: number) => (colorsMetric === 'revenue' ? formatAmount(value) : value.toLocaleString())} />
-                <Bar dataKey={colorsMetric} fill="#7c3aed" />
+                <Bar dataKey={colorsMetric} fill={CHART.revenue} radius={BAR_RADIUS_END} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -252,11 +241,11 @@ export function DashboardCharts({
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(200, sortedProducts.length * 40)}>
               <BarChart data={sortedProducts} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={140} />
+                <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} />
+                <YAxis dataKey="name" type="category" width={140} tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
                 <Tooltip formatter={(value: number) => (productsMetric === 'revenue' ? formatAmount(value) : value.toLocaleString())} />
-                <Bar dataKey={productsMetric} fill="#fbb336" />
+                <Bar dataKey={productsMetric} fill={CHART.revenue} radius={BAR_RADIUS_END} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -278,13 +267,14 @@ export function DashboardCharts({
               <p className="mb-2 text-xs text-muted">Click a bar to see its products and colors on the left.</p>
               <ResponsiveContainer width="100%" height={Math.max(200, deviceModels.length * 40)}>
                 <BarChart data={deviceModels} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis dataKey="model" type="category" width={140} />
+                  <CartesianGrid horizontal={false} stroke={CHART.grid} />
+                  <XAxis type="number" allowDecimals={false} tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={(value: number) => value.toLocaleString()} />
+                  <YAxis dataKey="model" type="category" width={140} tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHART.grid }} />
                   <Tooltip />
                   <Bar
                     dataKey="unitsSold"
-                    fill="#e29a1e"
+                    fill={CHART.revenue}
+                    radius={BAR_RADIUS_END}
                     cursor="pointer"
                     onClick={(data) => handleModelClick((data as unknown as DeviceModelPerformance).model)}
                   >

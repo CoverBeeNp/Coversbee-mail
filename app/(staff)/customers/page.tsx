@@ -162,7 +162,7 @@ export default function CustomersPage() {
                               </button>
                               <button disabled={saving} onClick={cancelEdit} className="btn-outline">Cancel</button>
                             </div>
-                            {saveError && <p role="alert" className="text-xs text-red-600">{saveError}</p>}
+                            {saveError && <p role="alert" className="text-xs text-negative">{saveError}</p>}
                           </div>
                         </td>
                       </>

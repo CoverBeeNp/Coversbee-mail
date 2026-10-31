@@ -2,16 +2,11 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, blanxerStatusLabel, type OrderStatus } from '@/lib/types'
+import { formatAmount } from '@/lib/format'
 import { ORDERS_SYNCED_EVENT } from './SyncBlanxerButton'
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  received: 'badge-neutral',
-  dispatched: 'badge-gold',
-  out_for_delivery: 'badge-gold',
-  delivered: 'badge-success',
-  cancelled: 'badge-danger',
-}
+const ORDER_LIMIT = 50
 
 const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
@@ -47,6 +42,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
       // orders, which live on the finance pages.
       .not('status', 'is', null)
       .order('created_at', { ascending: false })
+      .limit(ORDER_LIMIT)
     if (error) {
       setLoadError(error.message)
       return
@@ -77,7 +73,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Orders</h1>
-          <p className="text-sm text-muted">New orders arrive with Sync from Blanxer. Open one to send its next status email.</p>
+          <p className="text-sm text-muted">The latest {ORDER_LIMIT} orders. Open one to send its next status email.</p>
         </div>
       </div>
 
@@ -125,9 +121,9 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
                     </Link>
                   </td>
                   <td className="text-ink-soft">{customerName(o) ?? '—'}</td>
-                  <td><span className={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</span></td>
-                  <td className="text-ink-soft">{o.blanxer_status?.replace(/_/g, ' ') ?? '—'}</td>
-                  <td className="tabular-nums text-ink-soft">{o.total != null ? `रू ${o.total}` : '—'}</td>
+                  <td><span className={ORDER_STATUS_BADGE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</span></td>
+                  <td className="text-ink-soft">{blanxerStatusLabel(o.blanxer_status)}</td>
+                  <td className="tabular-nums text-ink-soft">{o.total != null ? formatAmount(o.total) : '—'}</td>
                 </tr>
               ))}
             </tbody>
