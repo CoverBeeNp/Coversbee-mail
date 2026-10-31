@@ -3,10 +3,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAV_GROUPS, activeHref } from '@/lib/navigation'
-import { LogOutButton } from './nav-actions'
 import { SyncBlanxerButton } from './orders/SyncBlanxerButton'
+import { UserMenu } from './UserMenu'
 
-export function StaffNav() {
+export function StaffNav({ email }: { email: string | null }) {
   const pathname = usePathname()
   const active = activeHref(pathname)
 
@@ -43,13 +43,9 @@ export function StaffNav() {
         ))}
       </nav>
 
-      <div className="hidden space-y-3 border-t border-white/10 p-4 md:block">
+      <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-2 md:block md:space-y-3 md:p-4">
         <SyncBlanxerButton />
-        <LogOutButton />
-      </div>
-      <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-2 md:hidden">
-        <SyncBlanxerButton />
-        <LogOutButton />
+        <UserMenu email={email} />
       </div>
     </aside>
   )

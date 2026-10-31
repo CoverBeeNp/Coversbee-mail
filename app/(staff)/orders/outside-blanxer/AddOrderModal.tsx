@@ -1,6 +1,6 @@
 'use client'
 
-import { Modal } from '../Modal'
+import { Modal } from '../../finance/Modal'
 import { ManualOrderForm } from './ManualOrderForm'
 
 export function AddOrderModal({

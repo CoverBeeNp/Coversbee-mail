@@ -6,7 +6,6 @@ const quiet: TodoInput = {
   dispatched: 0,
   outForDelivery: 0,
   failedSends: 0,
-  sendingCampaigns: 0,
   statementMonths: ['2026-09'],
   now: new Date('2026-10-31T12:00:00Z'),
 }

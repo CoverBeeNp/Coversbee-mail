@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderTransactionalEmail, renderCampaignEmail, escapeHtml } from './templates'
+import { renderTransactionalEmail, escapeHtml } from './templates'
 
 describe('renderTransactionalEmail', () => {
   it('renders a subject and HTML body referencing the order number, customer, items, and total for "received"', () => {
@@ -94,24 +94,6 @@ describe('email shell branding', () => {
 describe('escapeHtml', () => {
   it('escapes the five reserved HTML characters', () => {
     expect(escapeHtml(`<a href="x">&'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&#39;&lt;/a&gt;')
-  })
-})
-
-describe('renderCampaignEmail', () => {
-  it('does not escape the staff-authored body HTML', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Hello <strong>World</strong></p>')
-    expect(html).toContain('<p>Hello <strong>World</strong></p>')
-  })
-
-  it('includes a real unsubscribe link for the given customer, not a mailto', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Body</p>', 'cust-123')
-    expect(html).toContain('/unsubscribe?customer=cust-123')
-    expect(html).not.toContain('mailto:info@coversbee.com.np?subject=Unsubscribe')
-  })
-
-  it('falls back to a plain unsubscribe link with no customer id (preview mode)', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Body</p>')
-    expect(html).toContain('/unsubscribe"')
   })
 })
 

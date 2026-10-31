@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createManualOrder, findPossibleDuplicate, type PossibleDuplicate } from '@/lib/orders/manualOrders'
-import { useModalClose } from '../Modal'
+import { useModalClose } from '../../finance/Modal'
 
 const OTHER_MODEL = '__other__'
 

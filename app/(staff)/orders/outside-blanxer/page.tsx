@@ -4,7 +4,7 @@ import { DeleteManualOrderButton } from './DeleteManualOrderButton'
 import { AddOrderModal } from './AddOrderModal'
 import { formatAmount } from '@/lib/format'
 import { toCsv } from '@/lib/csv'
-import { ExportCsvButton } from '../ExportCsvButton'
+import { ExportCsvButton } from '../../finance/ExportCsvButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +69,7 @@ export default async function OrdersPage() {
               {orders.map((order) => (
                 <tr key={order.id}>
                   <td className="whitespace-nowrap">{order.orderDate.slice(0, 10)}</td>
-                  <td>{order.orderNumber}</td>
+                  <td className="whitespace-nowrap">{order.orderNumber}</td>
                   <td>{order.customerName}</td>
                   <td>{order.customerPhone}</td>
                   <td>{order.productName}</td>

@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 //
 // A failed page throws rather than returning what was read so far: partial
 // data would silently understate revenue, freeze wrong numbers into a monthly
-// statement, or drop customers from a campaign.
+// statement.
 const PAGE_SIZE = 1000
 
 export async function fetchAllRows<T>(

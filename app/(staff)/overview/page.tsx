@@ -19,12 +19,6 @@ const ORDER_STATUS_BADGE: Record<OrderStatus, string> = {
   cancelled: 'badge-danger',
 }
 
-const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
-  draft: 'badge-neutral',
-  sending: 'badge-gold',
-  sent: 'badge-success',
-}
-
 const FAILED_SENDS_DAYS = 30
 
 type OrderRow = { total: number | null; delivery_charge: number | null; status: string; created_at: string }
@@ -52,13 +46,13 @@ export default async function TodayPage() {
   const supabase = await createServerClient()
   const service = createServiceClient()
 
-  const [{ data: trackedOrders }, { data: campaigns }, { count: failedSends }, { data: syncState }] = await Promise.all([
+  const [{ data: trackedOrders }, { count: failedSends }, { data: syncState }] = await Promise.all([
     supabase.from('orders').select('status').not('status', 'is', null),
-    supabase.from('campaigns').select('id, name, status').order('created_at', { ascending: false }).limit(5),
     supabase
       .from('email_log')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'failed')
+      .eq('type', 'transactional')
       .gte('sent_at', daysAgoIso(FAILED_SENDS_DAYS)),
     service.from('blanxer_sync_state').select('last_synced_at').eq('id', true).single(),
   ])
@@ -85,7 +79,6 @@ export default async function TodayPage() {
     dispatched: statusCounts.dispatched,
     outForDelivery: statusCounts.out_for_delivery,
     failedSends: failedSends ?? 0,
-    sendingCampaigns: (campaigns ?? []).filter((c) => c.status === 'sending').length,
     statementMonths: statements.map((s) => s.month),
     now,
   })
@@ -141,41 +134,20 @@ export default async function TodayPage() {
         </div>
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="field-label">Orders in the email workflow</p>
-            <Link href="/orders" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
-          </div>
-          <div className="table-shell divide-y divide-line">
-            {ORDER_STATUSES.map((status) => (
-              <Link key={status} href={`/orders?status=${status}`} className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-paper">
-                <span className={ORDER_STATUS_BADGE[status]}>{ORDER_STATUS_LABEL[status]}</span>
-                <span className="font-semibold tabular-nums text-ink">{statusCounts[status]}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="field-label">Recent campaigns</p>
-            <Link href="/campaigns" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
-          </div>
-          {campaigns && campaigns.length > 0 ? (
-            <div className="table-shell divide-y divide-line">
-              {campaigns.map((c) => (
-                <Link key={c.id} href={`/campaigns/${c.id}`} className="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-paper">
-                  <span className="truncate font-medium text-ink">{c.name}</span>
-                  <span className={CAMPAIGN_STATUS_BADGE[c.status] ?? 'badge-neutral'}>{c.status}</span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="card text-center text-sm text-muted">No campaigns yet.</div>
-          )}
-        </section>
-      </div>
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="field-label">Orders in the email workflow</p>
+          <Link href="/orders" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {ORDER_STATUSES.map((status) => (
+            <Link key={status} href={`/orders?status=${status}`} className="card block text-center transition-colors hover:border-gold-dark">
+              <p className="text-2xl font-bold tabular-nums text-ink">{statusCounts[status]}</p>
+              <span className={`${ORDER_STATUS_BADGE[status]} mt-2`}>{ORDER_STATUS_LABEL[status]}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

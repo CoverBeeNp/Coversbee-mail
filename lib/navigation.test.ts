@@ -6,7 +6,7 @@ describe('activeHref', () => {
     ['/overview', '/overview'],
     ['/orders/abc', '/orders'],
     ['/finance', '/finance'],
-    ['/finance/orders', '/finance/orders'],
+    ['/orders/outside-blanxer', '/orders/outside-blanxer'],
     ['/finance/expenses', '/finance/expenses'],
     ['/finance/expenses/abc/edit', '/finance/expenses'],
     ['/finance/expenses/categories', '/finance/expenses/categories'],

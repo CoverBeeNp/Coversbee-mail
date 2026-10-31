@@ -6,12 +6,11 @@ const CARRIER_NAME = 'Nepal Can Move'
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CeedE59zZPfHEAI/review'
 
 // Customer-supplied values (name, address, item name/variant) come from the
-// Blanxer order paste, which ultimately originates from customer-entered
+// Blanxer order, which ultimately originates from customer-entered
 // checkout data — escape before interpolating into HTML so a name like
 // `<a href="...">` can't render as a live link, and `&`/`<` in a product
 // name or address can't mangle the markup, in a DKIM-signed email from
-// info@coversbee.com.np. Do NOT apply this to staff-authored campaign body
-// HTML (renderCampaignEmail's bodyHtml) — that's meant to render as HTML.
+// info@coversbee.com.np.
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -21,13 +20,7 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-// NEXT_PUBLIC_-prefixed (not just APP_URL) because this module is imported
-// by a Client Component (the campaign preview page) as well as server-side
-// API routes — a plain APP_URL only exists in process.env on the server, so
-// the browser-rendered preview would silently fall back to localhost for
-// the logo and unsubscribe links while the real, server-sent email got the
-// correct URL. The app's own public URL isn't sensitive, so exposing it to
-// the client is fine.
+// The app's public URL, used for the logo and unsubscribe links in every email.
 function appBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 }
@@ -37,8 +30,7 @@ function appBaseUrl(): string {
 // subscribed_to_marketing on an explicit POST, never on the GET page load
 // itself, since some corporate email scanners pre-fetch links and a
 // GET-that-mutates would silently unsubscribe people. Falls back to a plain
-// link with no customer id for contexts with no specific recipient yet
-// (e.g. the campaign builder's preview).
+// link when there is no specific customer.
 function unsubscribeUrl(customerId?: string): string {
   const base = appBaseUrl()
   return customerId ? `${base}/unsubscribe?customer=${encodeURIComponent(customerId)}` : `${base}/unsubscribe`
@@ -185,8 +177,4 @@ const RENDERERS: Record<OrderStatus, (order: TransactionalOrder) => { subject: s
 
 export function renderTransactionalEmail(status: OrderStatus, order: TransactionalOrder): { subject: string; html: string } {
   return RENDERERS[status](order)
-}
-
-export function renderCampaignEmail(subject: string, bodyHtml: string, customerId?: string): { subject: string; html: string } {
-  return { subject, html: shell(bodyHtml, customerId) }
 }

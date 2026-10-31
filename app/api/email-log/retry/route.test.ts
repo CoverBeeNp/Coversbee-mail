@@ -21,8 +21,10 @@ function fakeSupabase() {
               single: async () => ({
                 data: id === 'log-1'
                   ? { id: 'log-1', type: 'transactional', order_id: 'order-1', template_used: 'dispatched' }
-                  : null,
-                error: id === 'log-1' ? null : { message: 'not found' },
+                  : id === 'log-marketing'
+                    ? { id: 'log-marketing', type: 'marketing', customer_id: 'c1', template_used: 'campaign-1' }
+                    : null,
+                error: id === 'log-1' || id === 'log-marketing' ? null : { message: 'not found' },
               }),
             }),
           }),
@@ -102,5 +104,12 @@ describe('POST /api/email-log/retry', () => {
     expect(orderUpdates).toHaveLength(0)
     expect(emailLogInserts).toHaveLength(1)
     expect(emailLogInserts[0]).toMatchObject({ status: 'failed' })
+  })
+
+  it('refuses to retry a campaign email', async () => {
+    requireStaffMock.mockResolvedValue({ id: 'staff-1' })
+    const res = await POST({ json: async () => ({ emailLogId: 'log-marketing' }) } as unknown as NextRequest)
+    expect(res.status).toBe(410)
+    expect(sendEmailMock).not.toHaveBeenCalled()
   })
 })

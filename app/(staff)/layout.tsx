@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServerClient, createServiceClient } from "@/lib/supabase/server";
 import { StaffNav } from "./StaffNav";
 
 // The Zoho-connection banner below reads live system_status on every
@@ -14,9 +14,12 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     .select("zoho_connected, last_error")
     .single();
 
+  const session = await createServerClient();
+  const { data: { user } } = await session.auth.getUser();
+
   return (
     <div className="flex min-h-screen flex-col md:flex-row print:block">
-      <StaffNav />
+      <StaffNav email={user?.email ?? null} />
       <div className="min-w-0 flex-1">
         {status && !status.zoho_connected && (
           <div className="bg-red-600 px-4 py-2 text-center text-sm font-medium text-white print:hidden">

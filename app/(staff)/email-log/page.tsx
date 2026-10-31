@@ -93,7 +93,7 @@ export default function EmailLogPage() {
                   </td>
                   <td className="max-w-xs text-red-600">{r.error_message}</td>
                   <td>
-                    {r.status === 'failed' && (
+                    {r.status === 'failed' && r.type === 'transactional' && (
                       <button disabled={retrying === r.id} onClick={() => retry(r.id)} className="btn-outline">
                         {retrying === r.id ? 'Retrying…' : 'Retry'}
                       </button>
@@ -107,7 +107,7 @@ export default function EmailLogPage() {
       ) : (
         <div className="card text-center">
           <p className="text-ink-soft">No emails sent yet.</p>
-          <p className="mt-1 text-sm text-muted">Sends from orders and campaigns will show up here.</p>
+          <p className="mt-1 text-sm text-muted">Status emails sent from orders will show up here.</p>
         </div>
       )}
     </div>

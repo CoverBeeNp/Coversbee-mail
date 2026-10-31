@@ -7,7 +7,6 @@ export type TodoInput = {
   dispatched: number
   outForDelivery: number
   failedSends: number
-  sendingCampaigns: number
   statementMonths: string[]
   now: Date
 }
@@ -62,15 +61,6 @@ export function buildTodos(input: TodoInput): Todo[] {
       href: '/orders?status=out_for_delivery',
     })
   }
-  if (input.sendingCampaigns > 0) {
-    todos.push({
-      label: 'Watch sending campaigns',
-      detail: `${plural(input.sendingCampaigns, 'campaign')} still going out`,
-      count: input.sendingCampaigns,
-      href: '/campaigns',
-    })
-  }
-
   const lastMonth = previousMonthKey(input.now.toISOString().slice(0, 7))
   if (!input.statementMonths.includes(lastMonth)) {
     todos.push({

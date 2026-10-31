@@ -10,7 +10,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Coversbee Data",
-  description: "CoversBee staff order and campaign email tool",
+  description: "CoversBee staff order and finance tool",
 };
 
 // Deliberately minimal: the staff nav bar, Zoho-connection banner, and

@@ -110,3 +110,7 @@ To check during build: whether Blanxer's list response includes status, which wo
 Added after the first local review. The two menu bars become one sidebar grouped as Today, Orders, Marketing and Finance. The Blanxer sync button moves to the sidebar. Today replaces Overview, listing what needs doing in order of urgency alongside the month's money. All staff pages share one set of widths. The order page offers the usual next status as its main button.
 
 Migration 0011 hides null-status orders from browser clients, so orders can be copied before the new version is live. Copy with `--keep-mail-items` until then, then run the copy once more without it.
+
+## 10. Second round of changes
+
+Decided after the data copy. Campaigns are removed from the app, because the store can't send more than about 50 emails at once through Zoho Mail. Their tables stay as history, and migration 0012 stops the hourly job. Orders outside Blanxer move to `/orders/outside-blanxer` under Orders, the Finance dashboard is renamed Data, and a profile menu at the bottom of the sidebar holds Log out. The Marketing group is gone and Email log moves under Orders.
