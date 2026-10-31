@@ -16,7 +16,7 @@ export default async function StatementsPage() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-10">
       <div>
-        <h1 className="mb-2 text-2xl font-bold">Monthly statements</h1>
+        <h1 className="mb-2 text-2xl font-bold text-ink">Monthly statements</h1>
         <p className="text-sm text-muted">
           Each statement locks in that month&apos;s numbers as a permanent record, even if you add or correct older orders and expenses later.
         </p>

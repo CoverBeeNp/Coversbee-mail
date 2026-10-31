@@ -14,8 +14,8 @@ export default async function CategoriesPage() {
   )
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10 space-y-6">
-      <h1 className="text-2xl font-bold">Expense categories</h1>
+    <div className="page-narrow space-y-6">
+      <h1 className="text-2xl font-bold text-ink">Expense categories</h1>
       <CategoryForm />
       {categories.length === 0 ? (
         <div className="card text-sm text-muted">No categories yet. Add your first one above.</div>

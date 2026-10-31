@@ -104,3 +104,9 @@ To check during build: whether Blanxer's list response includes status, which wo
 6. Rehearse the copy against local copies of both databases.
 7. Cutover using section 6, then deploy.
 8. After confirmation, delete the Finance Vercel project and Supabase project, and archive its repo.
+
+## 9. Workflow redesign
+
+Added after the first local review. The two menu bars become one sidebar grouped as Today, Orders, Marketing and Finance. The Blanxer sync button moves to the sidebar. Today replaces Overview, listing what needs doing in order of urgency alongside the month's money. All staff pages share one set of widths. The order page offers the usual next status as its main button.
+
+Migration 0011 hides null-status orders from browser clients, so orders can be copied before the new version is live. Copy with `--keep-mail-items` until then, then run the copy once more without it.

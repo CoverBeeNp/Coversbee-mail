@@ -95,6 +95,12 @@ describe('planOrders', () => {
     for (const key of ['status', 'address', 'tracking_url', 'customer_id']) expect(patch).not.toHaveProperty(key)
   })
 
+  it('can leave product lines alone on orders already in Mail', () => {
+    const plan = planOrders([financeOrder({})], [mailOrder({})], ids, { keepMailItems: true })
+    expect(plan.patches.get('mo1')).not.toHaveProperty('parsed_items')
+    expect(plan.patches.get('mo1')).toMatchObject({ blanxer_status: 'Delivered' })
+  })
+
   it('links a pasted order that has no blanxer_id by its number', () => {
     const plan = planOrders([financeOrder({})], [mailOrder({ blanxer_id: null })], ids)
     expect(plan.patches.get('mo1')).toMatchObject({ blanxer_id: 'bx-1' })

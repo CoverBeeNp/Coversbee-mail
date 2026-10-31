@@ -31,7 +31,7 @@ export default function NewCampaignPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
+    <div className="page-narrow">
       <h1 className="mb-1 text-2xl font-bold text-ink">New campaign</h1>
       <p className="mb-6 text-sm text-muted">You&rsquo;ll be able to preview and test-send before it goes to the segment.</p>
       <div className="card space-y-4">

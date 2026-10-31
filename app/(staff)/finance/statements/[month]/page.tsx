@@ -45,7 +45,7 @@ export default async function StatementDetailPage({ params }: { params: Promise<
   )
 
   return (
-    <div className="mx-auto max-w-[1000px] space-y-6 px-6 py-10 print:max-w-none">
+    <div className="page-narrow space-y-6 print:max-w-none print:p-0">
       <div className="flex items-center gap-3 border-b border-line pb-6">
         <Image src="/logo.png" alt="" width={44} height={44} />
         <div>
@@ -56,7 +56,7 @@ export default async function StatementDetailPage({ params }: { params: Promise<
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="mb-1 text-2xl font-bold">{formatMonthLabel(statement.month)}</h1>
+          <h1 className="mb-1 text-2xl font-bold text-ink">{formatMonthLabel(statement.month)}</h1>
           <p className="text-sm text-muted">Generated {statement.generatedAt.slice(0, 10)} — figures locked at generation time.</p>
         </div>
         <div className="flex gap-2 print:hidden">

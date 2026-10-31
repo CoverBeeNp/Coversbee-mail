@@ -85,7 +85,7 @@ export default function CustomersPage() {
   })
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="page">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Customers</h1>

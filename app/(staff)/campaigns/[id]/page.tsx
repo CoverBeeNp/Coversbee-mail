@@ -103,8 +103,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     if (body.ok) await loadCampaign()
   }
 
-  if (loadError) return <div className="mx-auto max-w-3xl px-6 py-8"><p role="alert" className="alert-error">{loadError}</p></div>
-  if (!campaign) return <div className="mx-auto max-w-3xl px-6 py-8"><p className="text-muted">Loading…</p></div>
+  if (loadError) return <div className="page-narrow"><p role="alert" className="alert-error">{loadError}</p></div>
+  if (!campaign) return <div className="page-narrow"><p className="text-muted">Loading…</p></div>
 
   // While editing, the preview reflects the in-progress edit (not yet
   // saved) so staff can see the result before committing — that's the
@@ -115,7 +115,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     : renderCampaignEmail(campaign.subject, campaign.body_template)
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="page-narrow">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">{campaign.name}</h1>

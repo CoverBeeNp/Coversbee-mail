@@ -12,8 +12,8 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
   if (!existing) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10 space-y-6">
-      <h1 className="text-2xl font-bold">Edit expense</h1>
+    <div className="page-narrow space-y-6">
+      <h1 className="text-2xl font-bold text-ink">Edit expense</h1>
       <ExpenseForm categories={categories} existing={existing} />
     </div>
   )

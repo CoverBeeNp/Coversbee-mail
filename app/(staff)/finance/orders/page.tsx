@@ -32,10 +32,10 @@ export default async function OrdersPage() {
   )
 
   return (
-    <div className="mx-auto max-w-[1600px] px-6 py-10">
+    <div className="page">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="mb-2 text-2xl font-bold">Orders outside Blanxer</h1>
+          <h1 className="mb-2 text-2xl font-bold text-ink">Orders outside Blanxer</h1>
           <p className="text-sm text-muted">
             Orders synced from Blanxer are not managed here. This page is only for sales that happened outside Blanxer.
           </p>
@@ -68,7 +68,7 @@ export default async function OrdersPage() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td>{order.orderDate.slice(0, 10)}</td>
+                  <td className="whitespace-nowrap">{order.orderDate.slice(0, 10)}</td>
                   <td>{order.orderNumber}</td>
                   <td>{order.customerName}</td>
                   <td>{order.customerPhone}</td>

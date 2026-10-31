@@ -94,6 +94,7 @@ export default async function DashboardPage({
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-10">
+      <h1 className="text-2xl font-bold text-ink">Finance dashboard</h1>
       <DashboardTopBar from={from} to={to} bankBalance={bankBalance} />
       <KpiTiles monthly={monthly} hasFilter={Boolean(from || to)} />
       <DashboardCharts

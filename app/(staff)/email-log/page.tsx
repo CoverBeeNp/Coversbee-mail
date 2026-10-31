@@ -63,7 +63,7 @@ export default function EmailLogPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="page">
       <h1 className="text-2xl font-bold text-ink">Send history</h1>
       <p className="mb-6 text-sm text-muted">Most recent {PAGE_SIZE} sends.</p>
       {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}

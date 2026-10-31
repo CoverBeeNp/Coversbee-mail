@@ -30,9 +30,9 @@ export default async function ExpensesPage() {
   )
 
   return (
-    <div className="mx-auto max-w-[1600px] px-6 py-10">
+    <div className="page">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Expenses</h1>
+        <h1 className="text-2xl font-bold text-ink">Expenses</h1>
         <div className="flex gap-2">
           <ExportCsvButton filename="expenses.csv" csv={csv} />
           <AddExpenseModal categories={categories} />
@@ -61,16 +61,18 @@ export default async function ExpensesPage() {
             <tbody>
               {expenses.map((expense) => (
                 <tr key={expense.id}>
-                  <td>{expense.expenseDate}</td>
+                  <td className="whitespace-nowrap">{expense.expenseDate}</td>
                   <td>{expense.paidTo}</td>
                   <td>{expense.paidBy}</td>
                   <td>{categoryName.get(expense.categoryId) ?? 'Unknown'}</td>
                   <td className="tabular-nums">{formatAmount(expense.amount)}</td>
                   <td className="tabular-nums">{expense.amountUsd != null ? formatAmount(expense.amountUsd) : ''}</td>
                   <td>{expense.note}</td>
-                  <td className="flex gap-2">
-                    <Link href={`/finance/expenses/${expense.id}/edit`} className="btn-outline">Edit</Link>
-                    <DeleteExpenseButton id={expense.id} />
+                  <td>
+                    <div className="flex gap-2">
+                      <Link href={`/finance/expenses/${expense.id}/edit`} className="btn-outline">Edit</Link>
+                      <DeleteExpenseButton id={expense.id} />
+                    </div>
                   </td>
                 </tr>
               ))}

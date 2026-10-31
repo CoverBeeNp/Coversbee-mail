@@ -204,13 +204,13 @@ export function DashboardCharts({
           {breakdown.length === 0 ? (
             <EmptyChart message="No expenses logged yet." />
           ) : (
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie data={breakdown} dataKey="total" nameKey="categoryName" outerRadius={90}>
                   {breakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={(value: number) => formatAmount(value)} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: 12, lineHeight: '1.6' }} />
+                <Legend layout="horizontal" align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: 12, lineHeight: '1.6' }} />
               </PieChart>
             </ResponsiveContainer>
           )}

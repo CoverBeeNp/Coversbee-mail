@@ -70,7 +70,7 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="page-narrow">
       <h1 className="mb-1 text-2xl font-bold text-ink">New customer</h1>
       <p className="mb-6 text-sm text-muted">
         For customers who ordered before this app was set up — no order or email is created, just the customer record.

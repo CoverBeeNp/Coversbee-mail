@@ -12,6 +12,8 @@ Internal tool for CoversBee staff covering customer communication and the store'
 
 Revenue excludes the delivery charge and any order Blanxer marks Cancelled or Returned. Orders have two separate statuses: `status` is where the order is in the email workflow and only changes when staff send a status email, and `blanxer_status` is Blanxer's own status, which drives revenue. A null `status` means the order isn't in the email workflow, as with historical orders and sales outside Blanxer. These appear only on the finance pages and can't be sent status emails.
 
+Everything sits in one app with one sidebar, ordered around the working day: **Today** lists what needs doing and how the month is tracking, followed by Orders, Marketing and Finance. "Sync from Blanxer" is always in the sidebar.
+
 Staff sign in with a Supabase account; there's no public signup, and every page and API route requires a login except the customer-facing unsubscribe link.
 
 ## Environment variables
@@ -85,7 +87,7 @@ node --env-file=.env.copy scripts/copy-finance-data.ts           # dry run: read
 node --env-file=.env.copy scripts/copy-finance-data.ts --apply   # copies and verifies; needs migration 0010
 ```
 
-The script stops without writing if it finds an order conflict, and is safe to re-run.
+The script stops without writing if it finds an order conflict, and is safe to re-run. `--finance-tables` copies only categories, expenses, statements and the bank balance. `--keep-mail-items` leaves product lines alone on orders already in this project, for use before the new version is live. Migration 0011 must be applied before orders are copied, because it hides them from an older deployed version of the app.
 
 ## Zoho OAuth setup
 

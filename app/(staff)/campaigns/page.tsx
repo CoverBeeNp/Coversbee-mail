@@ -12,7 +12,7 @@ export default async function CampaignsPage() {
   const { data: campaigns } = await supabase.from('campaigns').select('id, name, status, created_at').order('created_at', { ascending: false })
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="page-narrow">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">Campaigns</h1>

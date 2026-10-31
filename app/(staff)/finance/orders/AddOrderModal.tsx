@@ -11,7 +11,7 @@ export function AddOrderModal({
   defaultOrderNumber: string
 }) {
   return (
-    <Modal triggerLabel="Add order" triggerClassName="btn-success" title="Add an order">
+    <Modal triggerLabel="Add order" triggerClassName="btn-gold" title="Add an order">
       <ManualOrderForm modelOptions={modelOptions} defaultOrderNumber={defaultOrderNumber} />
     </Modal>
   )

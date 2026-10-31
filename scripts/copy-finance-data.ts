@@ -3,6 +3,11 @@
 //   node --env-file=.env.copy scripts/copy-finance-data.ts            dry run
 //   node --env-file=.env.copy scripts/copy-finance-data.ts --apply    copy, then verify
 //
+// Add --finance-tables to copy only categories, expenses, statements and the
+// bank balance. Add --keep-mail-items to leave parsed_items alone on orders
+// already in Mail: an older deployed app shows `variant` alone, so splitting
+// colour out would drop it from customer emails until the new version is live.
+//
 // .env.copy needs SOURCE_SUPABASE_URL, SOURCE_SERVICE_ROLE_KEY (Finance) and
 // TARGET_SUPABASE_URL, TARGET_SERVICE_ROLE_KEY (this project). The dry run only
 // reads, and works before migration 0010 is applied, so it doubles as the
@@ -142,7 +147,12 @@ export type OrderPlan = {
 // A matched order takes Finance's real date, totals, items and Blanxer status,
 // and keeps its email status, address and tracking link. An order only in
 // Finance gets a null status, which keeps it out of the email workflow.
-export function planOrders(source: SourceOrder[], target: TargetOrder[], customerIds: Map<string, string>): OrderPlan {
+export function planOrders(
+  source: SourceOrder[],
+  target: TargetOrder[],
+  customerIds: Map<string, string>,
+  options: { keepMailItems?: boolean } = {}
+): OrderPlan {
   const plan: OrderPlan = { inserts: [], patches: new Map(), conflicts: [], mailOnlyOrders: 0 }
   const byId = new Map(target.map((o) => [o.id, o]))
   const byBlanxerId = new Map(target.filter((o) => o.blanxer_id).map((o) => [o.blanxer_id!, o]))
@@ -184,7 +194,12 @@ export function planOrders(source: SourceOrder[], target: TargetOrder[], custome
     const match = direct ?? numberMatch
     if (match) {
       matched.add(match.id)
-      plan.patches.set(match.id, { ...fields, ...(match.customer_id ? {} : { customer_id: customerId }) })
+      const { parsed_items, ...otherFields } = fields
+      plan.patches.set(match.id, {
+        ...otherFields,
+        ...(options.keepMailItems ? {} : { parsed_items }),
+        ...(match.customer_id ? {} : { customer_id: customerId }),
+      })
     } else {
       plan.inserts.push({ ...fields, id: s.id, customer_id: customerId, status: null, status_updated_at: s.created_at })
     }
@@ -250,6 +265,8 @@ function env(name: string): string {
 
 async function main() {
   const apply = process.argv.includes('--apply')
+  const financeTablesOnly = process.argv.includes('--finance-tables')
+  const keepMailItems = process.argv.includes('--keep-mail-items')
   const sourceUrl = env('SOURCE_SUPABASE_URL')
   const targetUrl = env('TARGET_SUPABASE_URL')
   if (sourceUrl === targetUrl) throw new Error('Source and target are the same project')
@@ -264,7 +281,7 @@ async function main() {
   const targetOrders = await fetchAllRows<TargetOrder>(target, 'orders', '*', 'created_at')
 
   const customers = planCustomers(sourceCustomers, targetCustomers)
-  const orders = planOrders(sourceOrders, targetOrders, customers.idMap)
+  const orders = planOrders(sourceOrders, targetOrders, customers.idMap, { keepMailItems })
 
   console.log(JSON.stringify({
     finance: {
@@ -303,10 +320,12 @@ async function main() {
     return
   }
 
-  await upsertInChunks(target, 'customers', customers.inserts)
-  await applyPatches(target, 'customers', customers.patches)
-  await upsertInChunks(target, 'orders', orders.inserts)
-  await applyPatches(target, 'orders', orders.patches)
+  if (!financeTablesOnly) {
+    await upsertInChunks(target, 'customers', customers.inserts)
+    await applyPatches(target, 'customers', customers.patches)
+    await upsertInChunks(target, 'orders', orders.inserts)
+    await applyPatches(target, 'orders', orders.patches)
+  }
 
   const categories = await fetchAllRows<Row>(source, 'expense_categories', '*', 'created_at')
   const expenses = await fetchAllRows<Row>(source, 'expenses', '*', 'created_at')
@@ -331,18 +350,20 @@ async function main() {
   const resubscribed = wasUnsubscribed.filter((id) => !stillUnsubscribed.has(id))
   if (resubscribed.length > 0) problems.push(`${resubscribed.length} unsubscribed customer(s) are now subscribed`)
 
-  const expectedOrders = targetOrders.length + orders.inserts.length
+  const expectedOrders = targetOrders.length + (financeTablesOnly ? 0 : orders.inserts.length)
   if (afterOrders.length !== expectedOrders) problems.push(`orders: expected ${expectedOrders}, found ${afterOrders.length}`)
   if (afterExpenses.length !== expenses.length) problems.push(`expenses: expected ${expenses.length}, found ${afterExpenses.length}`)
   const statementMismatches = statementsMatch(statements, afterStatements)
   if (statementMismatches.length > 0) problems.push(`statements differ for: ${statementMismatches.join(', ')}`)
 
-  const differences = revenueDifferences(
-    revenueByMonth(sourceOrders),
-    revenueByMonth(afterOrders.map((o) => ({ ...o, status: o.blanxer_status })) as never)
-  )
-  console.log(JSON.stringify({ revenueDifferencesByMonth: differences }, null, 2))
-  if (differences.length > 0 && orders.mailOnlyOrders === 0) problems.push('revenue differs from Finance')
+  if (!financeTablesOnly) {
+    const differences = revenueDifferences(
+      revenueByMonth(sourceOrders),
+      revenueByMonth(afterOrders.map((o) => ({ ...o, status: o.blanxer_status })) as never)
+    )
+    console.log(JSON.stringify({ revenueDifferencesByMonth: differences }, null, 2))
+    if (differences.length > 0 && orders.mailOnlyOrders === 0) problems.push('revenue differs from Finance')
+  }
 
   if (problems.length > 0) {
     console.error(`Verification FAILED:\n- ${problems.join('\n- ')}`)
