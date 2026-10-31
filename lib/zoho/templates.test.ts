@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderTransactionalEmail, renderCampaignEmail, escapeHtml } from './templates'
+import { renderTransactionalEmail, escapeHtml } from './templates'
 
 describe('renderTransactionalEmail', () => {
   it('renders a subject and HTML body referencing the order number, customer, items, and total for "received"', () => {
@@ -97,29 +97,29 @@ describe('escapeHtml', () => {
   })
 })
 
-describe('renderCampaignEmail', () => {
-  it('does not escape the staff-authored body HTML', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Hello <strong>World</strong></p>')
-    expect(html).toContain('<p>Hello <strong>World</strong></p>')
-  })
-
-  it('includes a real unsubscribe link for the given customer, not a mailto', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Body</p>', 'cust-123')
-    expect(html).toContain('/unsubscribe?customer=cust-123')
-    expect(html).not.toContain('mailto:info@coversbee.com.np?subject=Unsubscribe')
-  })
-
-  it('falls back to a plain unsubscribe link with no customer id (preview mode)', () => {
-    const { html } = renderCampaignEmail('Subject', '<p>Body</p>')
-    expect(html).toContain('/unsubscribe"')
-  })
-})
-
 describe('unsubscribe link on transactional emails', () => {
   it('includes the customer id when provided', () => {
     const { html } = renderTransactionalEmail('received', {
       blanxerOrderNumber: '1', items: [], total: 0, customerName: 'Test', customerId: 'cust-456',
     })
     expect(html).toContain('/unsubscribe?customer=cust-456')
+  })
+})
+
+describe('item variant in transactional emails', () => {
+  it('shows colour and model together when they are stored separately', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', total: 799, customerName: 'Test',
+      items: [{ name: 'Silicon', color: 'Old Rose', variant: 'iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
+    })
+    expect(html).toContain('Silicon (Old Rose/iPhone 13)')
+  })
+
+  it('still shows the full label on older orders with no separate colour', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', total: 799, customerName: 'Test',
+      items: [{ name: 'Silicon', variant: 'Old Rose/iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
+    })
+    expect(html).toContain('Silicon (Old Rose/iPhone 13)')
   })
 })

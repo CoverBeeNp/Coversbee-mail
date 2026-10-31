@@ -1,25 +1,26 @@
 'use client'
 import { use, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
-import type { ParsedItem } from '@/lib/parser/blanxerParser'
-import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, itemVariantLabel, type OrderItem, type OrderStatus } from '@/lib/types'
+import { formatAmount } from '@/lib/format'
 
 const STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  received: 'badge-neutral',
-  dispatched: 'badge-gold',
-  out_for_delivery: 'badge-gold',
-  delivered: 'badge-success',
-  cancelled: 'badge-danger',
+// The usual next step, offered as the main button. The rest stay available
+// because orders don't always move in a straight line.
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  received: 'dispatched',
+  dispatched: 'out_for_delivery',
+  out_for_delivery: 'delivered',
 }
 
 type OrderDetail = {
   id: string
   blanxer_order_number: string | null
-  status: OrderStatus
+  status: OrderStatus | null
   total: number | null
-  parsed_items: ParsedItem[]
+  parsed_items: OrderItem[]
   customers: { name: string | null; email: string | null } | null
 }
 
@@ -65,11 +66,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     if (body.ok) await loadOrder()
   }
 
-  if (loadError) return <div className="mx-auto max-w-3xl px-6 py-8"><p role="alert" className="alert-error">{loadError}</p></div>
-  if (!order) return <div className="mx-auto max-w-3xl px-6 py-8"><p className="text-muted">Loading…</p></div>
+  if (loadError) return <div className="page-narrow"><p role="alert" className="alert-error">{loadError}</p></div>
+  if (!order) return <div className="page-narrow"><p className="text-muted">Loading…</p></div>
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="page-narrow">
+      <Link href="/orders" className="mb-4 inline-block text-sm font-medium text-gold-dark hover:underline">← All orders</Link>
+
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">Order #{order.blanxer_order_number}</h1>
@@ -77,25 +80,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {order.customers?.name ?? 'Unknown customer'} · {order.customers?.email ?? 'no email on file'}
           </p>
         </div>
-        <span className={STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>
+        {order.status && <span className={ORDER_STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>}
       </div>
 
       <div className="card mb-6">
         <ul className="divide-y divide-line">
-          {order.parsed_items.map((item, i) => (
+          {order.parsed_items.map((item, i) => {
+            const variant = itemVariantLabel(item)
+            return (
             <li key={i} className="flex justify-between py-2 text-sm">
-              <span className="text-ink-soft">{item.name}{item.variant ? ` (${item.variant})` : ''} × {item.qty}</span>
-              <span className="tabular-nums text-ink">रू {item.lineTotal}</span>
+              <span className="text-ink-soft">{item.name}{variant ? ` (${variant})` : ''} × {item.qty}</span>
+              <span className="tabular-nums text-ink">{formatAmount(item.lineTotal)}</span>
             </li>
-          ))}
+            )
+          })}
         </ul>
         <div className="mt-3 flex justify-between border-t border-line pt-3">
           <span className="font-semibold text-ink">Total</span>
-          <span className="font-semibold tabular-nums text-ink">रू {order.total ?? '—'}</span>
+          <span className="font-semibold tabular-nums text-ink">{order.total != null ? formatAmount(order.total) : '—'}</span>
         </div>
       </div>
 
-      <div className="card">
+      {order.status && <div className="card">
         <p className="field-label mb-3">Send status email</p>
         <div className="flex flex-wrap gap-2">
           {STATUSES.map((status) => (
@@ -103,18 +109,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               key={status}
               disabled={sending !== null}
               onClick={() => sendStatus(status)}
-              className={status === order.status ? 'btn-outline' : 'btn-primary'}
+              className={status === NEXT_STATUS[order.status as OrderStatus] ? 'btn-gold' : 'btn-outline'}
             >
               {sending === status ? 'Sending…' : `Send ${ORDER_STATUS_LABEL[status]}`}
             </button>
           ))}
         </div>
         {message && (
-          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-red-600' : 'text-emerald-700'}`}>
+          <p className={`mt-3 text-sm ${message.startsWith('Failed') ? 'text-negative' : 'text-positive'}`}>
             {message}
           </p>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

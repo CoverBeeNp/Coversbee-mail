@@ -15,7 +15,7 @@ export function UnsubscribeButton({ customerId }: { customerId: string }) {
   }
 
   if (state === 'done') {
-    return <p className="mt-6 text-sm text-emerald-700">You&rsquo;ve been unsubscribed. Sorry to see you go!</p>
+    return <p className="mt-6 text-sm text-positive">You&rsquo;ve been unsubscribed. Sorry to see you go!</p>
   }
 
   return (

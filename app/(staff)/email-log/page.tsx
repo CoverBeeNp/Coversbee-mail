@@ -63,7 +63,7 @@ export default function EmailLogPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="page">
       <h1 className="text-2xl font-bold text-ink">Send history</h1>
       <p className="mb-6 text-sm text-muted">Most recent {PAGE_SIZE} sends.</p>
       {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}
@@ -91,9 +91,9 @@ export default function EmailLogPage() {
                   <td>
                     <span className={r.status === 'sent' ? 'badge-success' : 'badge-danger'}>{r.status}</span>
                   </td>
-                  <td className="max-w-xs text-red-600">{r.error_message}</td>
+                  <td className="max-w-xs text-negative">{r.error_message}</td>
                   <td>
-                    {r.status === 'failed' && (
+                    {r.status === 'failed' && r.type === 'transactional' && (
                       <button disabled={retrying === r.id} onClick={() => retry(r.id)} className="btn-outline">
                         {retrying === r.id ? 'Retrying…' : 'Retry'}
                       </button>
@@ -107,7 +107,7 @@ export default function EmailLogPage() {
       ) : (
         <div className="card text-center">
           <p className="text-ink-soft">No emails sent yet.</p>
-          <p className="mt-1 text-sm text-muted">Sends from orders and campaigns will show up here.</p>
+          <p className="mt-1 text-sm text-muted">Status emails sent from orders will show up here.</p>
         </div>
       )}
     </div>

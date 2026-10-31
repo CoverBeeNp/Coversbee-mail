@@ -36,7 +36,7 @@ export default function LoginPage() {
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Image src="/logo.png" alt="CoversBee" width={56} height={54} />
           <div>
-            <h1 className="text-xl font-bold text-ink">CoversBee Mail</h1>
+            <h1 className="text-xl font-bold text-ink">Coversbee Data</h1>
             <p className="text-sm text-muted">Staff sign in</p>
           </div>
         </div>

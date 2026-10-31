@@ -1,17 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
-import { SyncBlanxerButton } from './SyncBlanxerButton'
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, blanxerStatusLabel, type OrderStatus } from '@/lib/types'
+import { formatAmount } from '@/lib/format'
+import { ORDERS_SYNCED_EVENT } from './SyncBlanxerButton'
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  received: 'badge-neutral',
-  dispatched: 'badge-gold',
-  out_for_delivery: 'badge-gold',
-  delivered: 'badge-success',
-  cancelled: 'badge-danger',
-}
+const ORDER_LIMIT = 50
 
 const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
@@ -19,6 +14,7 @@ type Order = {
   id: string
   blanxer_order_number: string | null
   status: OrderStatus
+  blanxer_status: string | null
   total: number | null
   customers: { name: string | null } | { name: string | null }[] | null
 }
@@ -28,18 +24,25 @@ function customerName(order: Order): string | null {
   return customer?.name ?? null
 }
 
-export default function OrdersPage() {
+export default function OrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const requestedStatus = use(searchParams).status as OrderStatus | undefined
   const [orders, setOrders] = useState<Order[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(
+    requestedStatus && ORDER_STATUSES.includes(requestedStatus) ? requestedStatus : 'all'
+  )
 
   async function load() {
     const supabase = createBrowserClient()
     const { data, error } = await supabase
       .from('orders')
-      .select('id, blanxer_order_number, status, total, customers(name)')
+      .select('id, blanxer_order_number, status, blanxer_status, total, customers(name)')
+      // Null status means not in the email workflow: historical and non-Blanxer
+      // orders, which live on the finance pages.
+      .not('status', 'is', null)
       .order('created_at', { ascending: false })
+      .limit(ORDER_LIMIT)
     if (error) {
       setLoadError(error.message)
       return
@@ -51,6 +54,8 @@ export default function OrdersPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount, not a render-triggered sync
     load()
+    window.addEventListener(ORDERS_SYNCED_EVENT, load)
+    return () => window.removeEventListener(ORDERS_SYNCED_EVENT, load)
   }, [])
 
   const filtered = orders.filter((o) => {
@@ -64,15 +69,11 @@ export default function OrdersPage() {
   })
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="page">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Orders</h1>
-          <p className="text-sm text-muted">Paste an order from Blanxer to get started.</p>
-        </div>
-        <div className="flex items-start gap-3">
-          <SyncBlanxerButton onSynced={load} />
-          <Link href="/orders/new" className="btn-gold">+ New order</Link>
+          <p className="text-sm text-muted">The latest {ORDER_LIMIT} orders. Open one to send its next status email.</p>
         </div>
       </div>
 
@@ -107,6 +108,7 @@ export default function OrdersPage() {
                 <th>Order</th>
                 <th>Customer</th>
                 <th>Status</th>
+                <th>Blanxer status</th>
                 <th>Total</th>
               </tr>
             </thead>
@@ -119,8 +121,9 @@ export default function OrdersPage() {
                     </Link>
                   </td>
                   <td className="text-ink-soft">{customerName(o) ?? '—'}</td>
-                  <td><span className={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</span></td>
-                  <td className="tabular-nums text-ink-soft">{o.total != null ? `रू ${o.total}` : '—'}</td>
+                  <td><span className={ORDER_STATUS_BADGE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</span></td>
+                  <td className="text-ink-soft">{blanxerStatusLabel(o.blanxer_status)}</td>
+                  <td className="tabular-nums text-ink-soft">{o.total != null ? formatAmount(o.total) : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -133,8 +136,7 @@ export default function OrdersPage() {
           ) : (
             <>
               <p className="text-ink-soft">No orders yet.</p>
-              <p className="mt-1 text-sm text-muted">Paste your first Blanxer order to start tracking it here.</p>
-              <Link href="/orders/new" className="btn-gold mt-4 inline-flex">+ New order</Link>
+              <p className="mt-1 text-sm text-muted">Use Sync from Blanxer to start tracking orders here.</p>
             </>
           )}
         </div>

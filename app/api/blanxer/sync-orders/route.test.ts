@@ -1,106 +1,45 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- mock supabase/request casts for tests */
+/* eslint-disable @typescript-eslint/no-explicit-any -- mock request casts for tests */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { NextRequest } from 'next/server'
 
 const requireStaffMock = vi.fn()
-const exchangeBlanxerApiKeyMock = vi.fn()
-const listBlanxerOrdersMock = vi.fn()
-const getBlanxerOrderDetailMock = vi.fn()
-const saveParsedOrderMock = vi.fn()
+const syncFromBlanxerMock = vi.fn()
 
 vi.mock('@/lib/auth/requireStaff', () => ({ requireStaff: (...args: any[]) => requireStaffMock(...args) }))
-vi.mock('@/lib/blanxer/client', () => ({
-  exchangeBlanxerApiKey: (...args: any[]) => exchangeBlanxerApiKeyMock(...args),
-  listBlanxerOrders: (...args: any[]) => listBlanxerOrdersMock(...args),
-  getBlanxerOrderDetail: (...args: any[]) => getBlanxerOrderDetailMock(...args),
-}))
-vi.mock('@/lib/orders/saveParsedOrder', () => ({ saveParsedOrder: (...args: any[]) => saveParsedOrderMock(...args) }))
-vi.mock('@/lib/parser/blanxerParser', () => ({
-  mapBlanxerApiOrder: (detail: any) => ({ blanxerId: detail._id, blanxerOrderNumber: String(detail.order_number) }),
-}))
+vi.mock('@/lib/blanxer/sync', () => ({ syncFromBlanxer: (...args: any[]) => syncFromBlanxerMock(...args) }))
+vi.mock('@/lib/supabase/server', () => ({ createServiceClient: () => ({}) }))
 
-// Blanxer order list: #101 was already synced before (has a local row with
-// blanxer_id set), #102 was entered by hand via the paste flow before this
-// order existed in Blanxer's API (local row has blanxer_order_number '102'
-// but blanxer_id is null), #103 is genuinely new.
-const LISTED = [
-  { _id: 'bx-101', order_number: 101, created_at: '2026-08-01T00:00:00Z' },
-  { _id: 'bx-102', order_number: 102, created_at: '2026-08-01T00:00:00Z' },
-  { _id: 'bx-103', order_number: 103, created_at: '2026-08-01T00:00:00Z' },
-]
+import { POST } from './route'
 
-const syncStateUpdates: any[] = []
-const orderBlanxerIdBackfills: any[] = []
-
-function fakeSupabase() {
-  return {
-    from: (table: string) => {
-      if (table === 'blanxer_sync_state') {
-        return {
-          select: () => ({ eq: () => ({ single: async () => ({ data: { last_synced_at: '2026-08-01T00:00:00Z' }, error: null }) }) }),
-          update: (values: any) => ({ eq: async () => { syncStateUpdates.push(values); return { error: null } } }),
-        }
-      }
-      if (table === 'orders') {
-        return {
-          select: (cols: string) => {
-            if (cols === 'blanxer_id') {
-              return { in: async () => ({ data: [{ blanxer_id: 'bx-101' }], error: null }) }
-            }
-            if (cols === 'id, blanxer_order_number') {
-              return {
-                in: () => ({
-                  is: async () => ({ data: [{ id: 'local-order-102', blanxer_order_number: '102' }], error: null }),
-                }),
-              }
-            }
-            throw new Error(`unexpected orders select ${cols}`)
-          },
-          update: (values: any) => ({ eq: async (_c: string, id: string) => { orderBlanxerIdBackfills.push({ id, values }); return { error: null } } }),
-        }
-      }
-      throw new Error(`unexpected table ${table}`)
-    },
-  }
-}
-
-vi.mock('@/lib/supabase/server', () => ({ createServiceClient: () => fakeSupabase() }))
-
-const { POST } = await import('./route')
-
-function fakeRequest(): NextRequest {
-  return {} as unknown as NextRequest
-}
+const request = {} as NextRequest
 
 describe('POST /api/blanxer/sync-orders', () => {
   beforeEach(() => {
-    syncStateUpdates.length = 0
-    orderBlanxerIdBackfills.length = 0
+    vi.clearAllMocks()
     process.env.BLANXER_API_KEY = 'test-key'
-    requireStaffMock.mockReset().mockResolvedValue({ id: 'staff-1' })
-    exchangeBlanxerApiKeyMock.mockReset().mockResolvedValue({ token: 'tok', storeId: 'store-1' })
-    listBlanxerOrdersMock.mockReset().mockResolvedValue(LISTED)
-    getBlanxerOrderDetailMock.mockReset().mockImplementation(async (_token: string, _storeId: string, orderId: string) => ({
-      _id: orderId,
-      order_number: orderId === 'bx-103' ? 103 : -1,
-    }))
-    saveParsedOrderMock.mockReset().mockResolvedValue({ orderId: 'new-order-id' })
+    requireStaffMock.mockResolvedValue({ id: 'staff-1' })
+    syncFromBlanxerMock.mockResolvedValue({ listed: 1, imported: 0, updated: 1, remaining: 0, errors: [], complete: true })
   })
 
-  it('skips an order already synced by blanxer_id, backfills blanxer_id on a matching manually-pasted order instead of duplicating it, and imports only the genuinely new order', async () => {
-    const res = await POST(fakeRequest())
-    const body = await res.json()
+  it('rejects a request without a login and syncs nothing', async () => {
+    requireStaffMock.mockResolvedValue(null)
+    expect((await POST(request)).status).toBe(401)
+    expect(syncFromBlanxerMock).not.toHaveBeenCalled()
+  })
 
-    expect(body.ok).toBe(true)
-    expect(body.imported).toBe(1)
-    expect(body.backfilled).toBe(1)
+  it('returns the sync result with a deadline inside the function limit', async () => {
+    const before = Date.now()
+    const body = await (await POST(request)).json()
+    expect(body).toMatchObject({ ok: true, updated: 1 })
+    const { deadline } = syncFromBlanxerMock.mock.calls[0][2]
+    expect(deadline).toBeLessThanOrEqual(before + 60_000)
+    expect(deadline).toBeGreaterThan(before)
+  })
 
-    // #103 is the only one actually fetched/saved as a new order.
-    expect(getBlanxerOrderDetailMock).toHaveBeenCalledTimes(1)
-    expect(getBlanxerOrderDetailMock).toHaveBeenCalledWith('tok', 'store-1', 'bx-103')
-    expect(saveParsedOrderMock).toHaveBeenCalledTimes(1)
-
-    // #102's existing local row gets blanxer_id backfilled, not a new insert.
-    expect(orderBlanxerIdBackfills).toEqual([{ id: 'local-order-102', values: { blanxer_id: 'bx-102' } }])
+  it('reports a failure', async () => {
+    syncFromBlanxerMock.mockRejectedValue(new Error('Blanxer API key exchange failed (403)'))
+    const res = await POST(request)
+    expect(res.status).toBe(502)
+    expect((await res.json()).error).toContain('403')
   })
 })

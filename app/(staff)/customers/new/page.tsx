@@ -7,7 +7,7 @@ import { parseCustomerDetails } from '@/lib/parser/blanxerParser'
 // Manual entry for customers who ordered before this app existed (their
 // info living in Blanxer or some other pre-existing record) — deliberately
 // a plain data-entry form with no send-email side effect anywhere in this
-// path, unlike the order-paste flow which offers status-email buttons.
+// path.
 export default function NewCustomerPage() {
   const [pasteText, setPasteText] = useState('')
   const [name, setName] = useState('')
@@ -22,7 +22,7 @@ export default function NewCustomerPage() {
     const parsed = parseCustomerDetails(pasteText)
     // Fill in whatever the paste found; never clobber a field the paste
     // couldn't confidently extract — the fields stay directly editable
-    // either way, matching the order-paste flow's "never guess" rule.
+    // either way, so nothing is guessed.
     if (parsed.name) setName(parsed.name)
     if (parsed.phone) setPhone(parsed.phone)
     if (parsed.email) setEmail(parsed.email)
@@ -70,7 +70,7 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="page-narrow">
       <h1 className="mb-1 text-2xl font-bold text-ink">New customer</h1>
       <p className="mb-6 text-sm text-muted">
         For customers who ordered before this app was set up — no order or email is created, just the customer record.

@@ -32,4 +32,4 @@ export async function proxy(request: NextRequest) {
   return response
 }
 
-export const config = { matcher: ['/overview/:path*', '/orders/:path*', '/campaigns/:path*', '/customers/:path*', '/email-log/:path*', '/api/:path*'] }
+export const config = { matcher: ['/overview/:path*', '/orders/:path*', '/customers/:path*', '/email-log/:path*', '/finance/:path*', '/api/:path*'] }
