@@ -43,19 +43,6 @@ Copy `.env.example` to `.env.local` and fill in:
 
 2. Create staff accounts: Supabase dashboard → Authentication → Users → Add user (email/password).
 
-## Copying the Finance data in
-
-A one-time step. Remove `scripts/copy-finance-data.ts` and `allowImportingTsExtensions` in `tsconfig.json` once it's done. Full cutover steps and checks are in `docs/superpowers/specs/2026-10-31-coversbee-data-design.md`.
-
-Create `.env.copy` (ignored by git) with `SOURCE_SUPABASE_URL` and `SOURCE_SERVICE_ROLE_KEY` for Finance, and `TARGET_SUPABASE_URL` and `TARGET_SERVICE_ROLE_KEY` for this project.
-
-```bash
-node --env-file=.env.copy scripts/copy-finance-data.ts           # dry run: reads only, reports duplicates and conflicts
-node --env-file=.env.copy scripts/copy-finance-data.ts --apply --finance-tables   # copies categories, expenses, statements and bank balance
-```
-
-Orders were copied on 2026-10-31 and now follow Blanxer, so re-applying them from Finance is refused without `--include-orders`.
-
 ## Zoho OAuth setup
 
 1. Register a **Self Client** at the [Zoho API Console](https://api-console.zoho.com/).
