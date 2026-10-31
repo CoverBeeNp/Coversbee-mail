@@ -23,7 +23,22 @@ function formatRangeLabel(monthly: MonthlySummary[], hasFilter: boolean): string
 // way "This year" sums just that year, rather than singling out the latest
 // month, which would misleadingly look like a snapshot of "now" instead of
 // the totals for the selected range.
-export function KpiTiles({ monthly, hasFilter }: { monthly: MonthlySummary[]; hasFilter: boolean }) {
+export type InsightTile = {
+  label: string
+  value: string
+  note?: string
+  tone?: 'plain' | 'negative'
+}
+
+export function KpiTiles({
+  monthly,
+  hasFilter,
+  insights,
+}: {
+  monthly: MonthlySummary[]
+  hasFilter: boolean
+  insights: InsightTile[]
+}) {
   if (monthly.length === 0) {
     return (
       <div className="card">
@@ -49,6 +64,11 @@ export function KpiTiles({ monthly, hasFilter }: { monthly: MonthlySummary[]; ha
         <StatTile label="Expenses" value={formatAmount(summary.expenses)} />
         <StatTile label="Profit" value={formatAmount(summary.profit)} tone={signedTone(summary.profit)} />
         <StatTile label="Margin" value={formatPercent(margin)} tone={signedTone(margin)} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
+        {insights.map((tile) => (
+          <StatTile key={tile.label} size="small" {...tile} />
+        ))}
       </div>
     </div>
   )

@@ -11,3 +11,7 @@ export function formatPercent(value: number): string {
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
+
+export function formatDays(days: number | null): string {
+  return days === null ? '—' : `${days.toFixed(1)} days`
+}

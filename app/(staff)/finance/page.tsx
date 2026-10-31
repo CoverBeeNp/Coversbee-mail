@@ -11,10 +11,11 @@ import { expenseBreakdown } from '@/lib/analytics/expenseBreakdown'
 import { isWithinRange } from '@/lib/analytics/dateRange'
 import { returnsSummary } from '@/lib/analytics/returns'
 import { customerMix } from '@/lib/analytics/customerMix'
-import { deliverySpeed, lateOrders } from '@/lib/analytics/deliverySpeed'
+import { LATE_AFTER_DAYS, deliverySpeed, lateOrders } from '@/lib/analytics/deliverySpeed'
+import { formatDays, formatPercent } from '@/lib/format'
 import { DashboardCharts } from './DashboardCharts'
 import { InsightCharts } from './InsightCharts'
-import { KpiTiles } from './KpiTiles'
+import { KpiTiles, type InsightTile } from './KpiTiles'
 import { DashboardTopBar } from './DashboardTopBar'
 
 export const dynamic = 'force-dynamic'
@@ -122,11 +123,28 @@ export default async function DashboardPage({
   // Late orders are about right now, so the date filter doesn't apply to them.
   const late = lateOrders(allOrders.map(toDeliveryRow), currentTime())
 
+  const insights: InsightTile[] = [
+    { label: 'Lost orders', value: formatPercent(returns.lostPercent), note: `of ${returns.orders.toLocaleString()} orders` },
+    { label: 'Cancelled', value: returns.cancelled.toLocaleString() },
+    { label: 'Returned', value: returns.returned.toLocaleString() },
+    { label: 'New customers', value: customers.newCustomers.toLocaleString() },
+    { label: 'Returning', value: customers.returningCustomers.toLocaleString() },
+    { label: 'Returning share', value: formatPercent(customers.returningPercent) },
+    { label: 'Typical delivery', value: formatDays(delivery.medianDays), note: `${delivery.measured.toLocaleString()} orders` },
+    { label: '90% arrive within', value: formatDays(delivery.p90Days) },
+    {
+      label: 'Late right now',
+      value: late.length.toLocaleString(),
+      tone: late.length > 0 ? 'negative' : 'plain',
+      note: `Open over ${LATE_AFTER_DAYS} days`,
+    },
+  ]
+
   return (
     <div className="page space-y-6">
       <h1 className="text-2xl font-bold text-ink">Data</h1>
       <DashboardTopBar from={from} to={to} bankBalance={bankBalance} />
-      <KpiTiles monthly={monthly} hasFilter={Boolean(from || to)} />
+      <KpiTiles monthly={monthly} hasFilter={Boolean(from || to)} insights={insights} />
       <DashboardCharts
         monthly={monthly}
         products={products}

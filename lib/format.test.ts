@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatAmount, formatPercent, formatDate } from './format'
+import { formatAmount, formatPercent, formatDate, formatDays } from './format'
 
 describe('formatAmount', () => {
   it('formats a whole number with exactly one decimal place', () => {
@@ -29,5 +29,12 @@ describe('formatDate', () => {
   it('shows one date format, unaffected by the time of day', () => {
     expect(formatDate('2026-10-31')).toBe('Oct 31, 2026')
     expect(formatDate('2026-10-31T23:30:00.000Z')).toBe('Oct 31, 2026')
+  })
+})
+
+describe('formatDays', () => {
+  it('shows one decimal, and a dash when nothing has been measured', () => {
+    expect(formatDays(1.87)).toBe('1.9 days')
+    expect(formatDays(null)).toBe('—')
   })
 })

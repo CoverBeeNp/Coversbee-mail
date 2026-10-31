@@ -16,6 +16,10 @@ export type LateOrder = { id: string; orderNumber: string | null; status: string
 // days, measured from store history on 2026-10-31.
 export const LATE_AFTER_DAYS = 4
 
+// Before December 2025 only 3 to 6 orders a month have dates, often recorded
+// long after delivery. Those months would dwarf the chart without meaning much.
+export const MIN_ORDERS_PER_MONTH = 10
+
 const CLOSED = new Set(['Delivered', 'Cancelled', 'Returned'])
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -42,6 +46,7 @@ export function deliverySpeed(orders: OrderForDelivery[]): DeliverySpeed {
   }
 
   const months = [...byMonth.entries()]
+    .filter(([, days]) => days.length >= MIN_ORDERS_PER_MONTH)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, days]) => ({
       month,
