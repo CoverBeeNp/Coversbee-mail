@@ -33,6 +33,8 @@ describe('mapBlanxerOrder', () => {
       status: 'Delivered',
       createdAt: CREATED_AT,
       blanxerUpdatedAt: null,
+      dispatchedAt: null,
+      deliveredAt: null,
       items: [{ name: 'Silicon', color: null, variant: 'Deep Purple', unitPrice: 799, qty: 1, lineTotal: 799 }],
       subtotal: 799,
       deliveryCharge: 170,

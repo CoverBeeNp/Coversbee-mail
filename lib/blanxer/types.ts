@@ -27,6 +27,8 @@ export type BlanxerApiOrderDetail = {
   }[]
   discount: { d_value: number; d_type?: number }
   updated_at?: string
+  dispatched_at?: string
+  delivered_at?: string
   customer_address_province?: string
   customer_address_city?: string
   customer_address?: string

@@ -8,6 +8,7 @@ export const CHART = {
   profit: '#0d9488',
   grid: '#e7e4dc',
   axis: '#746f63',
+  surface: '#ffffff',
 } as const
 
 export const AXIS_TICK = { fill: CHART.axis, fontSize: 12 }

@@ -12,14 +12,14 @@ export function StaffNav({ email }: { email: string | null }) {
 
   return (
     <aside className="z-10 flex shrink-0 flex-col bg-ink md:sticky md:top-0 md:h-screen md:w-60 print:hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:space-y-2 md:border-b md:border-white/10 md:px-3 md:pb-3 md:pt-3">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:space-y-3 md:px-3 md:pb-0 md:pt-4">
         <Link href="/overview" aria-label="Coversbee Data home" className="flex items-center gap-2 rounded-lg transition-opacity hover:opacity-80 md:px-2 md:py-1">
           <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
           <span className="text-sm font-bold tracking-wide text-white">
             Coversbee <span className="text-gold">Data</span>
           </span>
         </Link>
-        <div className="flex items-center gap-2 md:block">
+        <div className="flex items-center gap-2 md:block md:border-y md:border-white/10 md:py-3">
           <SyncBlanxerButton />
           <div className="md:hidden">
             <UserMenu email={email} />

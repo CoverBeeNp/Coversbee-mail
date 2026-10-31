@@ -14,7 +14,7 @@ export default async function StatementsPage() {
   const statements = await listStatements()
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-10">
+    <div className="page space-y-6">
       <div>
         <h1 className="mb-2 text-2xl font-bold text-ink">Monthly statements</h1>
         <p className="text-sm text-muted">

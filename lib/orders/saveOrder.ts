@@ -112,6 +112,8 @@ export async function saveOrder(supabase: SupabaseClient, order: MappedOrder): P
     // Omitted when empty so a re-check can't blank a value already stored.
     ...(order.address ? { address: order.address } : {}),
     ...(order.trackingUrl ? { tracking_url: order.trackingUrl } : {}),
+    ...(order.dispatchedAt ? { dispatched_at: order.dispatchedAt } : {}),
+    ...(order.deliveredAt ? { delivered_at: order.deliveredAt } : {}),
   }
 
   if (existing) {

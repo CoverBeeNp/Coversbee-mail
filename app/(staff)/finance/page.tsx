@@ -9,7 +9,11 @@ import { colorPerformance, type ColorPerformance } from '@/lib/analytics/colorPe
 import { normalizeKey } from '@/lib/analytics/nameGrouping'
 import { expenseBreakdown } from '@/lib/analytics/expenseBreakdown'
 import { isWithinRange } from '@/lib/analytics/dateRange'
+import { returnsSummary } from '@/lib/analytics/returns'
+import { customerMix } from '@/lib/analytics/customerMix'
+import { deliverySpeed, lateOrders } from '@/lib/analytics/deliverySpeed'
 import { DashboardCharts } from './DashboardCharts'
+import { InsightCharts } from './InsightCharts'
 import { KpiTiles } from './KpiTiles'
 import { DashboardTopBar } from './DashboardTopBar'
 
@@ -17,6 +21,10 @@ export const dynamic = 'force-dynamic'
 
 type ParsedItem = { name: string; color: string | null; variant: string | null; qty: number; lineTotal: number }
 type OrderRow = {
+  id: string
+  blanxer_order_number: string | null
+  customer_id: string | null
+  delivered_at: string | null
   total: number | null
   delivery_charge: number | null
   status: string
@@ -24,6 +32,10 @@ type OrderRow = {
   parsed_items: ParsedItem[] | null
 }
 type ExpenseRow = { amount: number; expense_date: string; category: { name: string } | null }
+
+function currentTime(): Date {
+  return new Date()
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -38,7 +50,7 @@ export default async function DashboardPage({
   const allOrders = await fetchAllRows<OrderRow>(
     supabase,
     'orders',
-    'id, total, delivery_charge, status:blanxer_status, created_at, parsed_items',
+    'id, blanxer_order_number, customer_id, delivered_at, total, delivery_charge, status:blanxer_status, created_at, parsed_items',
     'created_at'
   )
   const allExpenses = await fetchAllRows<ExpenseRow>(
@@ -92,8 +104,26 @@ export default async function DashboardPage({
     colorsByModel[deviceModel.model] = colorPerformance(ordersForModel)
   }
 
+  const toDeliveryRow = (o: OrderRow) => ({
+    id: o.id,
+    orderNumber: o.blanxer_order_number,
+    status: o.status,
+    createdAt: o.created_at,
+    deliveredAt: o.delivered_at,
+  })
+  const returns = returnsSummary(
+    safeOrders.map((o) => ({ status: o.status, createdAt: o.created_at, parsedItems: o.parsed_items ?? [] }))
+  )
+  const customers = customerMix(
+    allOrders.map((o) => ({ status: o.status, createdAt: o.created_at, customerId: o.customer_id })),
+    (o) => isWithinRange(o.createdAt, from, to)
+  )
+  const delivery = deliverySpeed(safeOrders.map(toDeliveryRow))
+  // Late orders are about right now, so the date filter doesn't apply to them.
+  const late = lateOrders(allOrders.map(toDeliveryRow), currentTime())
+
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-10">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-bold text-ink">Data</h1>
       <DashboardTopBar from={from} to={to} bankBalance={bankBalance} />
       <KpiTiles monthly={monthly} hasFilter={Boolean(from || to)} />
@@ -106,6 +136,7 @@ export default async function DashboardPage({
         productsByModel={productsByModel}
         colorsByModel={colorsByModel}
       />
+      <InsightCharts returns={returns} customers={customers} delivery={delivery} late={late} />
     </div>
   )
 }
