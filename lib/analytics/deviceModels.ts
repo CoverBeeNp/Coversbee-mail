@@ -1,7 +1,7 @@
 import { isRevenueOrder } from './orderFilters'
 import { normalizeKey, trackDisplayName, mostCommonDisplayName } from './nameGrouping'
 
-export type ItemForModels = { variant: string | null; qty: number }
+type ItemForModels = { variant: string | null; qty: number }
 export type OrderForModels = { status: string; parsedItems: ItemForModels[] }
 export type DeviceModelPerformance = { model: string; unitsSold: number }
 

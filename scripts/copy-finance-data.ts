@@ -63,7 +63,7 @@ export function normalizePhone(phone: string | null | undefined): string | null 
   return digits ? digits.slice(-10) : null
 }
 
-export function normalizeEmail(email: string | null | undefined): string | null {
+function normalizeEmail(email: string | null | undefined): string | null {
   return email?.trim().toLowerCase() || null
 }
 

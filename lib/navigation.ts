@@ -1,4 +1,4 @@
-export type NavLink = { href: string; label: string }
+type NavLink = { href: string; label: string }
 export type NavGroup = { label: string | null; links: NavLink[] }
 
 // The sidebar follows the working day: see what needs doing, fulfil orders,

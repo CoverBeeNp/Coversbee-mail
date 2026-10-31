@@ -1,7 +1,7 @@
 import { isRevenueOrder } from './orderFilters'
 import { normalizeKey, trackDisplayName, mostCommonDisplayName } from './nameGrouping'
 
-export type ParsedItemRow = { name: string; lineTotal: number; qty: number }
+type ParsedItemRow = { name: string; lineTotal: number; qty: number }
 export type OrderForProducts = { status: string; parsedItems: ParsedItemRow[] }
 export type ProductPerformance = { name: string; revenue: number; unitsSold: number }
 

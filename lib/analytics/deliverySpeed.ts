@@ -5,7 +5,7 @@ export type OrderForDelivery = {
   createdAt: string
   deliveredAt: string | null
 }
-export type DeliveryMonth = { month: string; medianDays: number; orders: number }
+type DeliveryMonth = { month: string; medianDays: number; orders: number }
 export type DeliverySpeed = { months: DeliveryMonth[]; medianDays: number | null; p90Days: number | null; measured: number }
 export type LateOrder = { id: string; orderNumber: string | null; status: string; ageDays: number }
 
@@ -18,7 +18,7 @@ export const LATE_AFTER_DAYS = 4
 
 // Before December 2025 only 3 to 6 orders a month have dates, often recorded
 // long after delivery. Those months would dwarf the chart without meaning much.
-export const MIN_ORDERS_PER_MONTH = 10
+const MIN_ORDERS_PER_MONTH = 10
 
 const CLOSED = new Set(['Delivered', 'Cancelled', 'Returned'])
 const DAY_MS = 24 * 60 * 60 * 1000

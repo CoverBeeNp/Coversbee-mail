@@ -5,8 +5,8 @@ export type OrderForReturns = {
   createdAt: string
   parsedItems: { name: string; qty: number }[]
 }
-export type ReturnsMonth = { month: string; orders: number; cancelled: number; returned: number }
-export type ProductReturns = { name: string; unitsLost: number; unitsOrdered: number; lostPercent: number }
+type ReturnsMonth = { month: string; orders: number; cancelled: number; returned: number }
+type ProductReturns = { name: string; unitsLost: number; unitsOrdered: number; lostPercent: number }
 export type ReturnsSummary = {
   months: ReturnsMonth[]
   products: ProductReturns[]

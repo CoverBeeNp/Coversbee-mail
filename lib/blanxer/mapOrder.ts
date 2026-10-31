@@ -1,6 +1,6 @@
 import type { BlanxerApiOrderDetail } from './types'
 
-export type MappedItem = { name: string; color: string | null; variant: string | null; unitPrice: number; qty: number; lineTotal: number }
+type MappedItem = { name: string; color: string | null; variant: string | null; unitPrice: number; qty: number; lineTotal: number }
 
 export type MappedOrder = {
   blanxerId: string
@@ -45,7 +45,7 @@ function discountAmount(subtotal: number, discount: BlanxerApiOrderDetail['disco
 
 // One display string for the email templates, which need a single address
 // rather than the four separate Blanxer fields.
-export function formatAddress(detail: Pick<BlanxerApiOrderDetail, 'customer_address' | 'customer_address_landmark' | 'customer_address_city' | 'customer_address_province'>): string | null {
+function formatAddress(detail: Pick<BlanxerApiOrderDetail, 'customer_address' | 'customer_address_landmark' | 'customer_address_city' | 'customer_address_province'>): string | null {
   const parts = [
     detail.customer_address,
     detail.customer_address_landmark,

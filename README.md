@@ -45,7 +45,7 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ## Copying the Finance data in
 
-A one-time step. Full cutover steps and checks are in `docs/superpowers/specs/2026-10-31-coversbee-data-design.md`.
+A one-time step. Remove `scripts/copy-finance-data.ts` and `allowImportingTsExtensions` in `tsconfig.json` once it's done. Full cutover steps and checks are in `docs/superpowers/specs/2026-10-31-coversbee-data-design.md`.
 
 Create `.env.copy` (ignored by git) with `SOURCE_SUPABASE_URL` and `SOURCE_SERVICE_ROLE_KEY` for Finance, and `TARGET_SUPABASE_URL` and `TARGET_SERVICE_ROLE_KEY` for this project.
 

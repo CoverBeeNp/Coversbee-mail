@@ -1,7 +1,7 @@
 import { isRevenueOrder } from './orderFilters'
 import { normalizeKey, trackDisplayName, mostCommonDisplayName } from './nameGrouping'
 
-export type ItemForColor = { color: string | null; lineTotal: number; qty: number }
+type ItemForColor = { color: string | null; lineTotal: number; qty: number }
 export type OrderForColor = { status: string; parsedItems: ItemForColor[] }
 export type ColorPerformance = { color: string; revenue: number; unitsSold: number }
 

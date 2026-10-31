@@ -1,7 +1,7 @@
 import { isRevenueOrder } from './orderFilters'
 
 export type OrderForMix = { status: string; createdAt: string; customerId: string | null }
-export type CustomerMonth = { month: string; newCustomers: number; returningCustomers: number }
+type CustomerMonth = { month: string; newCustomers: number; returningCustomers: number }
 export type CustomerMix = {
   months: CustomerMonth[]
   newCustomers: number
