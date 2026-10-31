@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/customers", label: "Customers" },
   { href: "/email-log", label: "Email Log" },
+  { href: "/finance", label: "Finance" },
 ];
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -27,17 +28,17 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   return (
     <>
       {status && !status.zoho_connected && (
-        <div className="bg-red-600 px-4 py-2 text-center text-sm font-medium text-white">
+        <div className="bg-red-600 px-4 py-2 text-center text-sm font-medium text-white print:hidden">
           Email sending is broken — reconnect Zoho.
           {status.last_error ? ` (${status.last_error})` : ""}
         </div>
       )}
-      <header className="flex items-center justify-between gap-4 bg-ink px-6 py-3">
+      <header className="flex items-center justify-between gap-4 bg-ink px-6 py-3 print:hidden">
         <div className="flex items-center gap-8">
           <Link href="/overview" className="flex items-center gap-2">
             <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
             <span className="text-sm font-bold tracking-wide text-white">
-              CoversBee <span className="text-gold">Mail</span>
+              CoversBee <span className="text-gold">Data</span>
             </span>
           </Link>
           <nav className="flex gap-6">

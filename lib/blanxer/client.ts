@@ -1,8 +1,7 @@
-// Direct-HTTP client for Blanxer's order-read API — used by
-// app/api/blanxer/sync-orders to pull new orders instead of relying on the
-// manual copy-paste flow. Blanxer has no webhook/push mechanism, so "sync"
-// here means polling GET /order/:store_id on demand.
-import type { BlanxerApiOrderDetail } from '@/lib/parser/blanxerParser'
+//
+// Direct-HTTP client for Blanxer's order-read API. Blanxer has no
+// webhook/push mechanism, so "sync" means polling these endpoints.
+import type { BlanxerOrderListItem, BlanxerApiOrderDetail } from './types'
 
 const BASE_URL = 'https://api.blanxer.com'
 
@@ -16,12 +15,6 @@ const CF_HEADERS = {
   Referer: 'https://app.blanxer.com/',
 }
 
-export type BlanxerOrderListItem = {
-  _id: string
-  order_number: number
-  created_at: string
-}
-
 export async function exchangeBlanxerApiKey(apiKey: string): Promise<{ token: string; storeId: string }> {
   const res = await fetch(`${BASE_URL}/api-key/check`, {
     method: 'POST',
@@ -33,11 +26,12 @@ export async function exchangeBlanxerApiKey(apiKey: string): Promise<{ token: st
   return { token: body.token as string, storeId: body.store._id as string }
 }
 
-// Blanxer's list endpoint returns projected fields only (no per-item price,
-// no customer email/address) — just enough to know which orders exist and
-// when they were created, so we can decide which are new before paying for
-// a full detail fetch on each one.
-export async function listBlanxerOrders(token: string, storeId: string, fromIso: string, toIso: string): Promise<BlanxerOrderListItem[]> {
+export async function listBlanxerOrders(
+  token: string,
+  storeId: string,
+  fromIso: string,
+  toIso: string
+): Promise<BlanxerOrderListItem[]> {
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
   const res = await fetch(`${BASE_URL}/order/${storeId}?${qs}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...CF_HEADERS },
@@ -47,7 +41,11 @@ export async function listBlanxerOrders(token: string, storeId: string, fromIso:
   return (body.orders ?? []) as BlanxerOrderListItem[]
 }
 
-export async function getBlanxerOrderDetail(token: string, storeId: string, orderId: string): Promise<BlanxerApiOrderDetail> {
+export async function getBlanxerOrderDetail(
+  token: string,
+  storeId: string,
+  orderId: string
+): Promise<BlanxerApiOrderDetail> {
   const res = await fetch(`${BASE_URL}/order/${storeId}/${orderId}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...CF_HEADERS },
   })

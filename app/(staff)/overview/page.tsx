@@ -47,7 +47,7 @@ export default async function OverviewPage({
   const rangeDays = parseRangeDays((await searchParams).days)
   const supabase = await createServerClient()
 
-  const { data: orders } = await supabase.from('orders').select('status')
+  const { data: orders } = await supabase.from('orders').select('status').not('status', 'is', null)
   const statusCounts: Record<OrderStatus, number> = { received: 0, dispatched: 0, out_for_delivery: 0, delivered: 0, cancelled: 0 }
   for (const o of orders ?? []) {
     const status = o.status as OrderStatus

@@ -2,15 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireStaff } from '@/lib/auth/requireStaff'
 import { exchangeBlanxerApiKey, listBlanxerOrders, getBlanxerOrderDetail } from '@/lib/blanxer/client'
-import { mapBlanxerApiOrder } from '@/lib/parser/blanxerParser'
-import { saveParsedOrder } from '@/lib/orders/saveParsedOrder'
+import { mapBlanxerOrder } from '@/lib/blanxer/mapOrder'
+import { monthWindows } from '@/lib/blanxer/dateWindows'
+import { saveOrder } from '@/lib/orders/saveOrder'
 
-// Manual-trigger-only sync (no cron): a staff member clicks "Sync from
-// Blanxer" on the orders page, this pulls anything created since the last
-// successful sync, and imports orders that aren't already here. It never
-// touches the status of orders already imported — that stays a manual
-// action in Coversbee, same as today, so a sync can't accidentally fire a
-// transactional email.
+// Sequential detail calls for a full re-check can take a while, so allow more
+// than the default. If the function is cut off the cursor hasn't moved, and
+// running sync again repeats the work safely.
+export const maxDuration = 60
+
+// The cursor only moves forward, so without this an order cancelled or returned
+// after import would keep its old status and still count as revenue. Each sync
+// re-reads recent orders to pick up those changes.
+const STATUS_RECHECK_DAYS = 30
+const CURSOR_OVERLAP_MS = 5 * 60 * 1000
+const DETAIL_BATCH_SIZE = 5
+
+type ListedOrder = Awaited<ReturnType<typeof listBlanxerOrders>>[number]
+
+// Manual-trigger-only sync (no cron). This never sends email and never changes
+// orders.status; see lib/orders/saveOrder.ts.
 export async function POST(request: NextRequest) {
   const user = await requireStaff(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,14 +37,13 @@ export async function POST(request: NextRequest) {
     .eq('id', true)
     .single()
   if (syncStateError || !syncState) {
-    return NextResponse.json({ ok: false, error: 'Sync state row missing — apply migration 0007' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: 'Sync state row missing — apply the migrations' }, { status: 500 })
   }
 
   const now = new Date()
-  // Look back 5 minutes before the last cursor to cover any order that was
-  // still being written when the previous sync ran its query — the blanxer_id
-  // dedup check below makes re-seeing an already-imported order harmless.
-  const from = new Date(new Date(syncState.last_synced_at).getTime() - 5 * 60 * 1000)
+  const recheckFrom = now.getTime() - STATUS_RECHECK_DAYS * 24 * 60 * 60 * 1000
+  const cursorFrom = new Date(syncState.last_synced_at).getTime() - CURSOR_OVERLAP_MS
+  const from = new Date(Math.min(recheckFrom, cursorFrom))
 
   let token: string
   let storeId: string
@@ -43,70 +53,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 502 })
   }
 
-  let listed
-  try {
-    listed = await listBlanxerOrders(token, storeId, from.toISOString(), now.toISOString())
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 502 })
-  }
-
-  const candidateIds = listed.map((o) => o._id)
-  const { data: existingRows, error: existingError } = candidateIds.length
-    ? await supabase.from('orders').select('blanxer_id').in('blanxer_id', candidateIds)
-    : { data: [], error: null }
-  if (existingError) return NextResponse.json({ ok: false, error: existingError.message }, { status: 500 })
-  const existingIds = new Set((existingRows ?? []).map((r) => r.blanxer_id))
-
-  const notYetSynced = listed.filter((o) => !existingIds.has(o._id))
-
-  // A manually-pasted order (app/(staff)/orders/actions.ts) has
-  // blanxer_order_number set but blanxer_id left null — the blanxer_id check
-  // above can't see it, so without this second check it would come back as
-  // "new" here and get inserted as a duplicate row with the same order
-  // number. Look up remaining candidates by order number among orders that
-  // don't already have a blanxer_id (a row that already has one was already
-  // handled above), and treat a match as "this exists, just link it" rather
-  // than importing a second copy.
-  const candidateOrderNumbers = notYetSynced.map((o) => String(o.order_number))
-  const { data: manualMatches, error: manualMatchError } = candidateOrderNumbers.length
-    ? await supabase.from('orders').select('id, blanxer_order_number').in('blanxer_order_number', candidateOrderNumbers).is('blanxer_id', null)
-    : { data: [], error: null }
-  if (manualMatchError) return NextResponse.json({ ok: false, error: manualMatchError.message }, { status: 500 })
-  const manualOrderIdByNumber = new Map((manualMatches ?? []).map((r) => [r.blanxer_order_number, r.id]))
-
-  const newOrders: typeof notYetSynced = []
-  let backfilled = 0
-  for (const o of notYetSynced) {
-    const manualOrderId = manualOrderIdByNumber.get(String(o.order_number))
-    if (manualOrderId) {
-      const { error: backfillError } = await supabase.from('orders').update({ blanxer_id: o._id }).eq('id', manualOrderId)
-      if (backfillError) return NextResponse.json({ ok: false, error: backfillError.message }, { status: 500 })
-      backfilled++
-    } else {
-      newOrders.push(o)
-    }
-  }
-
+  const windows = monthWindows(from.toISOString(), now.toISOString())
   let imported = 0
+  let updated = 0
   const errors: string[] = []
-  for (const o of newOrders) {
+
+  // The cursor may only advance over windows whose order list was read. A
+  // window whose list call failed was never seen, so moving past it would
+  // skip its orders permanently once they age out of the re-check.
+  let cursorUpTo: string | null = null
+  let listFailed = false
+
+  for (const window of windows) {
+    let listed: ListedOrder[]
     try {
-      const detail = await getBlanxerOrderDetail(token, storeId, o._id)
-      const parsed = mapBlanxerApiOrder(detail)
-      await saveParsedOrder(supabase, { parsed, rawPastedText: null, blanxerId: parsed.blanxerId })
-      imported++
+      listed = await listBlanxerOrders(token, storeId, window.from, window.to)
     } catch (err) {
-      errors.push(`Order #${o.order_number}: ${(err as Error).message}`)
+      errors.push(`Window ${window.from}–${window.to}: ${(err as Error).message}`)
+      listFailed = true
+      continue
+    }
+    if (!listFailed) cursorUpTo = window.to
+
+    for (let i = 0; i < listed.length; i += DETAIL_BATCH_SIZE) {
+      const batch = listed.slice(i, i + DETAIL_BATCH_SIZE)
+      const details = await Promise.allSettled(batch.map((item) => getBlanxerOrderDetail(token, storeId, item._id)))
+
+      // Details are fetched in parallel, but saved one at a time so two orders
+      // from one new customer can't both create that customer.
+      for (const [index, detail] of details.entries()) {
+        const item = batch[index]
+        if (detail.status === 'rejected') {
+          errors.push(`Order #${item.order_number}: ${(detail.reason as Error).message}`)
+          continue
+        }
+        try {
+          const result = await saveOrder(supabase, mapBlanxerOrder(detail.value, item.created_at))
+          if (result === 'inserted') imported++
+          else updated++
+        } catch (err) {
+          errors.push(`Order #${item.order_number}: ${(err as Error).message}`)
+        }
+      }
     }
   }
 
-  await supabase.from('blanxer_sync_state').update({ last_synced_at: now.toISOString() }).eq('id', true)
+  if (cursorUpTo) {
+    const { error: cursorError } = await supabase
+      .from('blanxer_sync_state')
+      .update({ last_synced_at: cursorUpTo })
+      .eq('id', true)
+    if (cursorError) errors.push(`Failed to advance sync cursor: ${cursorError.message}`)
+  }
 
-  return NextResponse.json({
-    ok: true,
-    imported,
-    backfilled,
-    skipped: listed.length - newOrders.length - backfilled,
-    errors,
-  })
+  return NextResponse.json({ ok: true, windows: windows.length, imported, updated, errors, lastSyncedAt: cursorUpTo })
 }

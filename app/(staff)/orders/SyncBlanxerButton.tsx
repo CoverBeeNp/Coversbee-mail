@@ -14,9 +14,9 @@ export function SyncBlanxerButton({ onSynced }: { onSynced?: () => void }) {
       if (!res.ok || !body.ok) {
         setResult(body.error ?? 'Sync failed')
       } else {
-        const backfillNote = body.backfilled ? `, linked ${body.backfilled} already-entered order${body.backfilled === 1 ? '' : 's'}` : ''
+        const updatedNote = body.updated ? `, re-checked ${body.updated}` : ''
         const errorNote = body.errors?.length ? `, ${body.errors.length} failed` : ''
-        setResult(`Imported ${body.imported} new order${body.imported === 1 ? '' : 's'}${backfillNote}${errorNote}`)
+        setResult(`Imported ${body.imported} new order${body.imported === 1 ? '' : 's'}${updatedNote}${errorNote}`)
         onSynced?.()
       }
     } catch {

@@ -21,10 +21,16 @@ export async function POST(request: NextRequest) {
 
   const { data: order, error } = await supabase
     .from('orders')
-    .select('id, blanxer_order_number, parsed_items, total, address, tracking_url, customer_id, customers(name, email)')
+    .select('id, status, blanxer_order_number, parsed_items, total, address, tracking_url, customer_id, customers(name, email)')
     .eq('id', orderId)
     .single()
   if (error || !order) return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 })
+
+  // Null status marks historical and non-Blanxer orders. The screens hide the
+  // send buttons for these; this stops a direct request emailing old customers.
+  if (order.status === null) {
+    return NextResponse.json({ ok: false, error: 'This order is not part of the email workflow' }, { status: 409 })
+  }
 
   const customer = (order as unknown as { customers: { name: string | null; email: string | null } | null }).customers
 

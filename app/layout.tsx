@@ -9,7 +9,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "CoversBee Mail",
+  title: "Coversbee Data",
   description: "CoversBee staff order and campaign email tool",
 };
 

@@ -1,12 +1,16 @@
-# CoversBee Mail
+# Coversbee Data
 
 **Live app:** [coversbee-mail.vercel.app](https://coversbee-mail.vercel.app)
 
-Internal tool for CoversBee staff to manage customer communication around orders and marketing, without living inside Blanxer (the store platform) or a generic email client:
+Internal tool for CoversBee staff covering customer communication and the store's finances, without living inside Blanxer (the store platform) or a generic email client:
 
-- **Order tracking & status emails** — keep a record of each Blanxer order and its customer, and notify the customer by email as the order moves through received → dispatched → delivered (or gets cancelled). Orders can be brought in either by pasting a Blanxer order page or, now, with a one-click "Sync from Blanxer" that pulls new orders straight from the store's API.
+- **Order tracking & status emails** — keep a record of each Blanxer order and its customer, and notify the customer by email as the order moves through received → dispatched → delivered (or gets cancelled). Orders come in with a one-click "Sync from Blanxer", which pulls new orders from the store's API and re-checks the status of orders from the last 30 days.
 - **Marketing campaigns** — write an email, preview it, test it on staff first, then send it to a chosen customer segment, with sending paced automatically so it doesn't trip Zoho's spam-burst protections.
 - **Send history** — every email attempt (order updates and campaigns alike) is logged with its outcome, and a failed send can be retried right from that log instead of digging through Zoho.
+
+- **Finance** — revenue, expenses, profit and margin for any date range, seasonality, top products, colors and device models, expense tracking, orders made outside Blanxer, a staff-entered bank balance, and locked monthly statements that can be printed or exported as CSV.
+
+Revenue excludes the delivery charge and any order Blanxer marks Cancelled or Returned. Orders have two separate statuses: `status` is where the order is in the email workflow and only changes when staff send a status email, and `blanxer_status` is Blanxer's own status, which drives revenue. A null `status` means the order isn't in the email workflow, as with historical orders and sales outside Blanxer. These appear only on the finance pages and can't be sent status emails.
 
 Staff sign in with a Supabase account; there's no public signup, and every page and API route requires a login except the customer-facing unsubscribe link.
 
@@ -19,6 +23,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project API URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key — safe to expose to the browser. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key. **Server-only.** |
+| `BLANXER_API_KEY` | Blanxer store API key (Blanxer dashboard → Settings → API), used by "Sync from Blanxer". Server-only. |
 | `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` / `ZOHO_REFRESH_TOKEN` | Zoho Mail OAuth credentials (see below). Server-only. |
 | `ZOHO_ACCOUNT_ID` | The Zoho Mail account ID for the sending mailbox. |
 | `ZOHO_FROM_ADDRESS` | Sending address, e.g. `info@coversbee.com.np`. |
@@ -68,6 +73,19 @@ The Edge Function (`supabase/functions/drain-campaign-queue`) runs on Deno and h
 5. Create staff accounts: Supabase dashboard → Authentication → Users → Add user (email/password).
 
 6. Seed `test_recipients` with staff email addresses for campaign "Send test" (insert rows via the table editor or SQL editor).
+
+## Copying the Finance data in
+
+A one-time step. Full cutover steps and checks are in `docs/superpowers/specs/2026-10-31-coversbee-data-design.md`.
+
+Create `.env.copy` (ignored by git) with `SOURCE_SUPABASE_URL` and `SOURCE_SERVICE_ROLE_KEY` for Finance, and `TARGET_SUPABASE_URL` and `TARGET_SERVICE_ROLE_KEY` for this project.
+
+```bash
+node --env-file=.env.copy scripts/copy-finance-data.ts           # dry run: reads only, reports duplicates and conflicts
+node --env-file=.env.copy scripts/copy-finance-data.ts --apply   # copies and verifies; needs migration 0010
+```
+
+The script stops without writing if it finds an order conflict, and is safe to re-run.
 
 ## Zoho OAuth setup
 

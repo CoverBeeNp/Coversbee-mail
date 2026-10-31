@@ -39,6 +39,9 @@ export default function OrdersPage() {
     const { data, error } = await supabase
       .from('orders')
       .select('id, blanxer_order_number, status, total, customers(name)')
+      // Null status means not in the email workflow: historical and non-Blanxer
+      // orders, which live on the finance pages.
+      .not('status', 'is', null)
       .order('created_at', { ascending: false })
     if (error) {
       setLoadError(error.message)
@@ -68,11 +71,10 @@ export default function OrdersPage() {
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Orders</h1>
-          <p className="text-sm text-muted">Paste an order from Blanxer to get started.</p>
+          <p className="text-sm text-muted">Sync from Blanxer to bring in new orders.</p>
         </div>
         <div className="flex items-start gap-3">
           <SyncBlanxerButton onSynced={load} />
-          <Link href="/orders/new" className="btn-gold">+ New order</Link>
         </div>
       </div>
 
@@ -133,8 +135,7 @@ export default function OrdersPage() {
           ) : (
             <>
               <p className="text-ink-soft">No orders yet.</p>
-              <p className="mt-1 text-sm text-muted">Paste your first Blanxer order to start tracking it here.</p>
-              <Link href="/orders/new" className="btn-gold mt-4 inline-flex">+ New order</Link>
+              <p className="mt-1 text-sm text-muted">Use Sync from Blanxer to start tracking orders here.</p>
             </>
           )}
         </div>

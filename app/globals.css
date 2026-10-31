@@ -35,6 +35,12 @@ body {
   .btn-gold {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-gold text-ink hover:bg-gold-dark;
   }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-emerald-600 text-white hover:bg-emerald-700;
+  }
+  .btn-danger-soft {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-red-100 text-red-700 hover:bg-red-200;
+  }
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 border border-line bg-surface text-ink hover:border-ink;
   }
@@ -76,5 +82,21 @@ body {
   }
   .alert-error {
     @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700;
+  }
+  .modal-dialog {
+    /* Tailwind's preflight zeroes every element's margin, which breaks the
+       browser's own centering for an open <dialog> (its UA stylesheet
+       centers it via `margin: auto`) — restore it explicitly. */
+    @apply w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-lg m-auto;
+  }
+  .modal-dialog::backdrop {
+    @apply bg-ink/40;
+  }
+}
+
+@media print {
+  .card {
+    box-shadow: none;
+    border-color: #d8d5cc;
   }
 }

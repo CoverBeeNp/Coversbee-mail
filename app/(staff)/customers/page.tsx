@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
+import { fetchAllRows } from '@/lib/supabase/fetchAllRows'
 
 type Customer = {
   id: string
@@ -24,16 +25,15 @@ export default function CustomersPage() {
 
   async function load() {
     const supabase = createBrowserClient()
-    const { data, error } = await supabase
-      .from('customers')
-      .select('id, name, phone, email, subscribed_to_marketing')
-      .order('created_at', { ascending: false })
-    if (error) {
-      setLoadError(error.message)
-      return
+    try {
+      const rows = await fetchAllRows<Customer>(
+        supabase, 'customers', 'id, name, phone, email, subscribed_to_marketing', 'created_at'
+      )
+      setLoadError(null)
+      setCustomers(rows.reverse())
+    } catch (err) {
+      setLoadError((err as Error).message)
     }
-    setLoadError(null)
-    setCustomers((data ?? []) as Customer[])
   }
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { fetchAllRows } from '@/lib/supabase/fetchAllRows'
 
 export type SegmentFilter = { type: 'all_subscribed' } | { type: 'recent_customers'; days: number }
 
@@ -15,16 +16,21 @@ export function matchesSegment(
 }
 
 export async function resolveSegmentCustomerIds(supabase: SupabaseClient, filter: SegmentFilter): Promise<string[]> {
-  const { data: customers } = await supabase.from('customers').select('id, subscribed_to_marketing')
-  const { data: orders } = await supabase.from('orders').select('customer_id, created_at').order('created_at', { ascending: false })
+  const customers = await fetchAllRows<{ id: string; subscribed_to_marketing: boolean }>(
+    supabase, 'customers', 'id, subscribed_to_marketing', 'created_at'
+  )
+  const orders = await fetchAllRows<{ customer_id: string | null; created_at: string }>(
+    supabase, 'orders', 'customer_id, created_at', 'created_at'
+  )
 
+  // Rows arrive oldest first, so each customer ends on their latest order.
   const lastOrderByCustomer = new Map<string, string>()
-  for (const order of orders ?? []) {
-    if (!lastOrderByCustomer.has(order.customer_id)) lastOrderByCustomer.set(order.customer_id, order.created_at)
+  for (const order of orders) {
+    if (order.customer_id) lastOrderByCustomer.set(order.customer_id, order.created_at)
   }
 
   const now = new Date()
-  return (customers ?? [])
+  return customers
     .filter((c) => matchesSegment({ subscribedToMarketing: c.subscribed_to_marketing, lastOrderAt: lastOrderByCustomer.get(c.id) ?? null }, filter, now))
     .map((c) => c.id)
 }

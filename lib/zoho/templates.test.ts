@@ -123,3 +123,21 @@ describe('unsubscribe link on transactional emails', () => {
     expect(html).toContain('/unsubscribe?customer=cust-456')
   })
 })
+
+describe('item variant in transactional emails', () => {
+  it('shows colour and model together when they are stored separately', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', total: 799, customerName: 'Test',
+      items: [{ name: 'Silicon', color: 'Old Rose', variant: 'iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
+    })
+    expect(html).toContain('Silicon (Old Rose/iPhone 13)')
+  })
+
+  it('still shows the full label on older orders with no separate colour', () => {
+    const { html } = renderTransactionalEmail('received', {
+      blanxerOrderNumber: '1', total: 799, customerName: 'Test',
+      items: [{ name: 'Silicon', variant: 'Old Rose/iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
+    })
+    expect(html).toContain('Silicon (Old Rose/iPhone 13)')
+  })
+})

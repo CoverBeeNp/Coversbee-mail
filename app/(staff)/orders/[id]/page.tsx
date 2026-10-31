@@ -1,8 +1,7 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase/client'
-import type { ParsedItem } from '@/lib/parser/blanxerParser'
-import { ORDER_STATUS_LABEL, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, itemVariantLabel, type OrderItem, type OrderStatus } from '@/lib/types'
 
 const STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
@@ -17,9 +16,9 @@ const STATUS_BADGE: Record<OrderStatus, string> = {
 type OrderDetail = {
   id: string
   blanxer_order_number: string | null
-  status: OrderStatus
+  status: OrderStatus | null
   total: number | null
-  parsed_items: ParsedItem[]
+  parsed_items: OrderItem[]
   customers: { name: string | null; email: string | null } | null
 }
 
@@ -77,17 +76,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {order.customers?.name ?? 'Unknown customer'} · {order.customers?.email ?? 'no email on file'}
           </p>
         </div>
-        <span className={STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>
+        {order.status && <span className={STATUS_BADGE[order.status]}>{ORDER_STATUS_LABEL[order.status]}</span>}
       </div>
 
       <div className="card mb-6">
         <ul className="divide-y divide-line">
-          {order.parsed_items.map((item, i) => (
+          {order.parsed_items.map((item, i) => {
+            const variant = itemVariantLabel(item)
+            return (
             <li key={i} className="flex justify-between py-2 text-sm">
-              <span className="text-ink-soft">{item.name}{item.variant ? ` (${item.variant})` : ''} × {item.qty}</span>
+              <span className="text-ink-soft">{item.name}{variant ? ` (${variant})` : ''} × {item.qty}</span>
               <span className="tabular-nums text-ink">रू {item.lineTotal}</span>
             </li>
-          ))}
+            )
+          })}
         </ul>
         <div className="mt-3 flex justify-between border-t border-line pt-3">
           <span className="font-semibold text-ink">Total</span>

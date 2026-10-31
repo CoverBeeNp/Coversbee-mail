@@ -1,4 +1,4 @@
-import type { ParsedItem } from '@/lib/parser/blanxerParser'
+import { itemVariantLabel, type OrderItem } from '@/lib/types'
 import type { OrderStatus } from '@/lib/types'
 
 const CUSTOMER_CARE_EMAIL = 'info@coversbee.com.np'
@@ -58,15 +58,20 @@ function shell(bodyHtml: string, customerId?: string): string {
   </div>`
 }
 
-function itemsHtml(items: ParsedItem[]): string {
+function itemLabel(item: OrderItem): string {
+  const variant = itemVariantLabel(item)
+  return variant ? ` (${escapeHtml(variant)})` : ''
+}
+
+function itemsHtml(items: OrderItem[]): string {
   return `<ul style="padding-left:20px; margin:8px 0;">${items
-    .map((i) => `<li>${escapeHtml(i.name)}${i.variant ? ` (${escapeHtml(i.variant)})` : ''} x ${i.qty} @ रू ${i.unitPrice}</li>`)
+    .map((i) => `<li>${escapeHtml(i.name)}${itemLabel(i)} x ${i.qty} @ रू ${i.unitPrice}</li>`)
     .join('')}</ul>`
 }
 
 type TransactionalOrder = {
   blanxerOrderNumber: string | null
-  items: ParsedItem[]
+  items: OrderItem[]
   total: number | null
   customerName: string | null
   address?: string | null
