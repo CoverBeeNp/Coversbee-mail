@@ -8,6 +8,7 @@ export type MappedOrder = {
   orderNumber: string
   status: string
   createdAt: string
+  blanxerUpdatedAt: string | null
   items: MappedItem[]
   subtotal: number
   deliveryCharge: number
@@ -91,6 +92,7 @@ export function mapBlanxerOrder(detail: BlanxerApiOrderDetail, createdAt: string
     orderNumber: String(detail.order_number),
     status: detail.status,
     createdAt,
+    blanxerUpdatedAt: detail.updated_at ?? null,
     items,
     subtotal,
     deliveryCharge: detail.delivery_charge,

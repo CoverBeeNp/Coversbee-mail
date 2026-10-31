@@ -111,7 +111,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
               <tr>
                 <th>Order</th>
                 <th>Customer</th>
-                <th>Email status</th>
+                <th>Status</th>
                 <th>Blanxer status</th>
                 <th>Total</th>
               </tr>

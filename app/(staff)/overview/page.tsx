@@ -136,7 +136,7 @@ export default async function TodayPage() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <p className="field-label">Orders in the email workflow</p>
+          <p className="field-label">Orders</p>
           <Link href="/orders" className="text-sm font-medium text-gold-dark hover:underline">View all</Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

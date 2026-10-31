@@ -114,3 +114,9 @@ Migration 0011 hides null-status orders from browser clients, so orders can be c
 ## 10. Second round of changes
 
 Decided after the data copy. Campaigns are removed from the app, because the store can't send more than about 50 emails at once through Zoho Mail. Their tables stay as history, and migration 0012 stops the hourly job. Orders outside Blanxer move to `/orders/outside-blanxer` under Orders, the Finance dashboard is renamed Data, and a profile menu at the bottom of the sidebar holds Log out. The Marketing group is gone and Email log moves under Orders.
+
+## 11. Blanxer as the source of truth
+
+Decided by the user after the data copy, replacing the rule that sync never changes `orders.status` and the 30-day re-check. Every sync lists the full history and fetches details only for orders whose `updated_at` changed, recorded in `orders.blanxer_updated_at` (migration 0013). `status` follows Blanxer through `lib/orders/workflowStatus.ts` with no email sent. Nothing is ever deleted. Returned maps to `cancelled` because the app has no returned status, and `blanxer_status` keeps the real value. Sync also runs every 15 minutes while the app is open.
+
+Migration 0009 turned out never to have been applied to production, so 0013 also adds `out_for_delivery`, safely if it already exists.

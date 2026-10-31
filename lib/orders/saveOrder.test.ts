@@ -55,6 +55,7 @@ function order(overrides: Partial<MappedOrder> = {}): MappedOrder {
     orderNumber: '1747',
     status: 'Delivered',
     createdAt: '2026-08-20T02:50:00.000Z',
+    blanxerUpdatedAt: '2026-08-21T00:00:00.000Z',
     items: [{ name: 'Silicon', color: 'Rose', variant: 'iPhone 13', unitPrice: 799, qty: 1, lineTotal: 799 }],
     subtotal: 799,
     deliveryCharge: 170,
@@ -74,11 +75,12 @@ describe('saveOrder', () => {
     writes = []
   })
 
-  it('inserts a new order into the email workflow with its Blanxer data', async () => {
+  it('inserts a new order with its Blanxer data and a status matching Blanxer', async () => {
     expect(await saveOrder(fakeSupabase(), order())).toBe('inserted')
     expect(tables.orders[0]).toMatchObject({
-      status: 'received',
+      status: 'delivered',
       blanxer_status: 'Delivered',
+      blanxer_updated_at: '2026-08-21T00:00:00.000Z',
       source: 'blanxer',
       blanxer_order_number: '1747',
       subtotal: 799,
@@ -89,18 +91,24 @@ describe('saveOrder', () => {
     })
   })
 
-  it('updates Blanxer status on an existing order without touching the email status', async () => {
+  it('marks an order delivered when Blanxer says so, with no email involved', async () => {
+    tables.orders.push({ id: 'o1', blanxer_id: 'bx-1', status: 'received', blanxer_status: 'Processing', customer_id: 'c1' })
+    expect(await saveOrder(fakeSupabase(), order())).toBe('updated')
+    expect(tables.orders[0]).toMatchObject({ status: 'delivered', blanxer_status: 'Delivered' })
+    expect(tables.orders[0].status_updated_at).toBeTruthy()
+  })
+
+  it('keeps a status email sent ahead of Blanxer', async () => {
     tables.orders.push({ id: 'o1', blanxer_id: 'bx-1', status: 'dispatched', blanxer_status: 'Processing', customer_id: 'c1' })
-    expect(await saveOrder(fakeSupabase(), order({ status: 'Cancelled' }))).toBe('updated')
-    expect(tables.orders[0]).toMatchObject({ status: 'dispatched', blanxer_status: 'Cancelled' })
-    const update = writes.find((w) => w.table === 'orders')!
-    expect(update.values).not.toHaveProperty('status')
+    await saveOrder(fakeSupabase(), order({ status: 'Processing' }))
+    expect(tables.orders[0].status).toBe('dispatched')
+    expect(writes.find((w) => w.table === 'orders')!.values).not.toHaveProperty('status')
   })
 
   it('keeps a historical order outside the email workflow', async () => {
     tables.orders.push({ id: 'o1', blanxer_id: 'bx-1', status: null, customer_id: 'c1' })
     await saveOrder(fakeSupabase(), order())
-    expect(tables.orders[0].status).toBeNull()
+    expect(tables.orders[0]).toMatchObject({ status: null, blanxer_status: 'Delivered' })
   })
 
   it('links an order that has a number but no blanxer_id instead of duplicating it', async () => {

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MappedOrder } from '@/lib/blanxer/mapOrder'
+import type { OrderStatus } from '@/lib/types'
+import { workflowStatusFromBlanxer } from './workflowStatus'
 
 export type SaveResult = 'inserted' | 'updated'
 
@@ -66,14 +68,14 @@ async function resolveCustomerId(supabase: SupabaseClient, order: MappedOrder): 
   return data.id
 }
 
-type ExistingOrder = { id: string; customer_id: string | null }
+type ExistingOrder = { id: string; customer_id: string | null; status: OrderStatus | null }
 
 // An order saved before it had a blanxer_id is matched by its order number, so
 // a sync links it instead of hitting the unique index on that number.
 async function findOrder(supabase: SupabaseClient, order: MappedOrder): Promise<ExistingOrder | null> {
   const byBlanxerId = await supabase
     .from('orders')
-    .select('id, customer_id')
+    .select('id, customer_id, status')
     .eq('blanxer_id', order.blanxerId)
     .maybeSingle()
   if (byBlanxerId.error) throw byBlanxerId.error
@@ -81,7 +83,7 @@ async function findOrder(supabase: SupabaseClient, order: MappedOrder): Promise<
 
   const byNumber = await supabase
     .from('orders')
-    .select('id, customer_id')
+    .select('id, customer_id, status')
     .eq('blanxer_order_number', order.orderNumber)
     .is('blanxer_id', null)
     .maybeSingle()
@@ -89,9 +91,10 @@ async function findOrder(supabase: SupabaseClient, order: MappedOrder): Promise<
   return byNumber.data
 }
 
-// Writes one Blanxer order. `status` is the email workflow status and is only
-// set on insert: on an existing order it belongs to staff, and only sending a
-// status email may change it. Blanxer's own status goes in blanxer_status.
+// Writes one Blanxer order. Blanxer is the source of truth, so its status also
+// moves the workflow status, without sending an email: `status` only says where
+// the order is, and email_log records what was actually sent. Blanxer's own
+// wording stays in blanxer_status. See lib/orders/workflowStatus.ts.
 export async function saveOrder(supabase: SupabaseClient, order: MappedOrder): Promise<SaveResult> {
   const customerId = await resolveCustomerId(supabase, order)
   const existing = await findOrder(supabase, order)
@@ -100,6 +103,7 @@ export async function saveOrder(supabase: SupabaseClient, order: MappedOrder): P
     blanxer_id: order.blanxerId,
     blanxer_order_number: order.orderNumber,
     blanxer_status: order.status,
+    blanxer_updated_at: order.blanxerUpdatedAt,
     created_at: order.createdAt,
     subtotal: order.subtotal,
     delivery_charge: order.deliveryCharge,
@@ -111,9 +115,14 @@ export async function saveOrder(supabase: SupabaseClient, order: MappedOrder): P
   }
 
   if (existing) {
+    const status = workflowStatusFromBlanxer(existing.status, order.status)
     const { error } = await supabase
       .from('orders')
-      .update({ ...blanxerFields, ...(existing.customer_id ? {} : { customer_id: customerId }) })
+      .update({
+        ...blanxerFields,
+        ...(existing.customer_id ? {} : { customer_id: customerId }),
+        ...(status === existing.status ? {} : { status, status_updated_at: new Date().toISOString() }),
+      })
       .eq('id', existing.id)
     if (error) throw error
     return 'updated'
@@ -121,7 +130,12 @@ export async function saveOrder(supabase: SupabaseClient, order: MappedOrder): P
 
   const { error } = await supabase
     .from('orders')
-    .insert({ ...blanxerFields, customer_id: customerId, status: 'received', source: 'blanxer' })
+    .insert({
+      ...blanxerFields,
+      customer_id: customerId,
+      status: workflowStatusFromBlanxer('received', order.status),
+      source: 'blanxer',
+    })
   if (error) throw error
   return 'inserted'
 }

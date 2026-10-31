@@ -13,6 +13,11 @@
 // reads, and works before migration 0010 is applied, so it doubles as the
 // duplicate audit. --apply needs 0010.
 //
+// Orders were copied on 2026-10-31 and Blanxer is now their source of truth.
+// Finance's stored order statuses are out of date, so applying its orders again
+// would undo sync's work. --apply now needs --finance-tables, unless
+// --include-orders is passed deliberately.
+//
 // supabase-js has no transactions, so this is written to be safe to re-run:
 // rows keep their ids, matches are recomputed, and nothing is deleted. Output
 // is counts and order numbers only, never customer details.
@@ -267,6 +272,9 @@ async function main() {
   const apply = process.argv.includes('--apply')
   const financeTablesOnly = process.argv.includes('--finance-tables')
   const keepMailItems = process.argv.includes('--keep-mail-items')
+  if (apply && !financeTablesOnly && !process.argv.includes('--include-orders')) {
+    throw new Error('Orders are already copied and now follow Blanxer. Use --finance-tables.')
+  }
   const sourceUrl = env('SOURCE_SUPABASE_URL')
   const targetUrl = env('TARGET_SUPABASE_URL')
   if (sourceUrl === targetUrl) throw new Error('Source and target are the same project')

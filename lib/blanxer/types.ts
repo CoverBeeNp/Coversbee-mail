@@ -2,6 +2,7 @@ export type BlanxerOrderListItem = {
   _id: string
   order_number: number
   created_at: string
+  updated_at?: string
 }
 
 // Blanxer's order-detail response (GET /order/:store_id/:order_id) has many
@@ -25,6 +26,7 @@ export type BlanxerApiOrderDetail = {
     discount_amount?: number
   }[]
   discount: { d_value: number; d_type?: number }
+  updated_at?: string
   customer_address_province?: string
   customer_address_city?: string
   customer_address?: string

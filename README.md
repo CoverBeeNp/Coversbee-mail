@@ -4,12 +4,12 @@
 
 Internal tool for CoversBee staff covering customer communication and the store's finances, without living inside Blanxer (the store platform) or a generic email client:
 
-- **Order tracking & status emails** — keep a record of each Blanxer order and its customer, and notify the customer by email as the order moves through received → dispatched → delivered (or gets cancelled). Orders come in with a one-click "Sync from Blanxer", which pulls new orders from the store's API and re-checks the status of orders from the last 30 days.
+- **Order tracking & status emails** — keep a record of each Blanxer order and its customer, and notify the customer by email as the order moves through received → dispatched → delivered (or gets cancelled). Blanxer is the source of truth: "Sync from Blanxer" compares every order against the store's API, and runs by itself every 15 minutes while the app is open. It never deletes anything and never sends email.
 - **Send history** — every order email attempt is logged with its outcome, and a failed send can be retried right from that log instead of digging through Zoho.
 
 - **Finance** — revenue, expenses, profit and margin for any date range, seasonality, top products, colors and device models, expense tracking, orders made outside Blanxer, a staff-entered bank balance, and locked monthly statements that can be printed or exported as CSV.
 
-Revenue excludes the delivery charge and any order Blanxer marks Cancelled or Returned. Orders have two separate statuses: `status` is where the order is in the email workflow and only changes when staff send a status email, and `blanxer_status` is Blanxer's own status, which drives revenue. A null `status` means the order isn't in the email workflow, as with historical orders and sales outside Blanxer. These appear only on the finance pages and can't be sent status emails.
+Revenue excludes the delivery charge and any order Blanxer marks Cancelled or Returned. Orders have two statuses. `blanxer_status` is Blanxer's own status and drives revenue. `status` is the app's workflow status, which follows Blanxer: Delivered and Cancelled always apply, and in-between statuses only move forward, so a status email sent ahead of Blanxer isn't undone. A status set by sync doesn't mean an email was sent; the Email log records that. A null `status` means the order isn't in the workflow, as with historical orders and sales outside Blanxer. These appear only on the finance pages and can't be sent status emails.
 
 Campaigns were removed on 2026-10-31. The `campaigns` and `campaign_recipients` tables stay as a record of past sends.
 
@@ -51,10 +51,10 @@ Create `.env.copy` (ignored by git) with `SOURCE_SUPABASE_URL` and `SOURCE_SERVI
 
 ```bash
 node --env-file=.env.copy scripts/copy-finance-data.ts           # dry run: reads only, reports duplicates and conflicts
-node --env-file=.env.copy scripts/copy-finance-data.ts --apply   # copies and verifies; needs migration 0010
+node --env-file=.env.copy scripts/copy-finance-data.ts --apply --finance-tables   # copies categories, expenses, statements and bank balance
 ```
 
-The script stops without writing if it finds an order conflict, and is safe to re-run. `--finance-tables` copies only categories, expenses, statements and the bank balance. `--keep-mail-items` leaves product lines alone on orders already in this project, for use before the new version is live. Migration 0011 must be applied before orders are copied, because it hides them from an older deployed version of the app.
+Orders were copied on 2026-10-31 and now follow Blanxer, so re-applying them from Finance is refused without `--include-orders`.
 
 ## Zoho OAuth setup
 
