@@ -12,8 +12,8 @@ export function StaffNav({ email }: { email: string | null }) {
 
   return (
     <aside className="z-10 flex shrink-0 flex-col bg-ink md:sticky md:top-0 md:h-screen md:w-60 print:hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:space-y-3 md:px-3 md:pb-2 md:pt-4">
-        <Link href="/overview" className="flex items-center gap-2 md:px-2">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:space-y-2 md:border-b md:border-white/10 md:px-3 md:pb-3 md:pt-3">
+        <Link href="/overview" aria-label="Coversbee Data home" className="flex items-center gap-2 rounded-lg transition-opacity hover:opacity-80 md:px-2 md:py-1">
           <Image src="/logo.png" alt="CoversBee" width={28} height={27} priority />
           <span className="text-sm font-bold tracking-wide text-white">
             Coversbee <span className="text-gold">Data</span>
@@ -27,7 +27,7 @@ export function StaffNav({ email }: { email: string | null }) {
         </div>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:gap-5 md:overflow-y-auto md:py-2">
+      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:gap-5 md:overflow-y-auto md:py-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.links[0].href} className="flex shrink-0 gap-1 md:flex-col">
             {group.label && (

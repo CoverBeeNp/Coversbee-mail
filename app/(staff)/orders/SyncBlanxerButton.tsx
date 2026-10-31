@@ -57,11 +57,19 @@ export function SyncBlanxerButton() {
   }, [sync])
 
   return (
-    <div className="space-y-1 md:px-0">
-      <button onClick={sync} disabled={syncing} className="btn-gold whitespace-nowrap md:w-full">
+    <div className="space-y-1">
+      <button
+        onClick={sync}
+        disabled={syncing}
+        className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-60 md:w-full md:justify-start"
+      >
+        <svg aria-hidden viewBox="0 0 16 16" className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" />
+          <path d="M13.5 2v3h-3" />
+        </svg>
         {syncing ? 'Syncing…' : 'Sync from Blanxer'}
       </button>
-      {result && <p className="text-xs text-white/60">{result}</p>}
+      {result && <p className="hidden px-1 text-[11px] leading-tight text-white/50 md:block">{result}</p>}
     </div>
   )
 }
