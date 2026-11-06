@@ -1,10 +1,63 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { NAV_GROUPS, activeHref } from '@/lib/navigation'
+import { NAV_GROUPS, activeHref, type NavLink } from '@/lib/navigation'
 import { SyncBlanxerButton } from './orders/SyncBlanxerButton'
 import { UserMenu } from './UserMenu'
+
+function linkClass(isActive: boolean): string {
+  return `whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    isActive ? 'bg-gold text-ink' : 'text-white/70 hover:bg-white/10 hover:text-white'
+  }`
+}
+
+// Opens while you're anywhere in its section, and the arrow opens or closes it
+// from elsewhere. Clicking the link itself goes to the page and opens it.
+function DropdownLink({ link, active, pathname }: { link: NavLink; active: string | undefined; pathname: string }) {
+  const inSection = pathname === link.href || pathname.startsWith(`${link.href}/`)
+  const [toggled, setToggled] = useState<boolean | null>(null)
+  const open = toggled ?? inSection
+  const children = link.children ?? []
+
+  return (
+    <>
+      <div className="flex items-center gap-1">
+        <Link
+          href={link.href}
+          onClick={() => setToggled(true)}
+          aria-current={link.href === active ? 'page' : undefined}
+          className={`flex-1 ${linkClass(link.href === active)}`}
+        >
+          {link.label}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setToggled(!open)}
+          aria-expanded={open}
+          aria-label={`${open ? 'Hide' : 'Show'} ${link.label} pages`}
+          className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <svg aria-hidden viewBox="0 0 16 16" className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+      </div>
+      {open &&
+        children.map((child) => (
+          <Link
+            key={child.href}
+            href={child.href}
+            aria-current={child.href === active ? 'page' : undefined}
+            className={`md:ml-4 ${linkClass(child.href === active)}`}
+          >
+            {child.label}
+          </Link>
+        ))}
+    </>
+  )
+}
 
 export function StaffNav({ email }: { email: string | null }) {
   const pathname = usePathname()
@@ -35,18 +88,20 @@ export function StaffNav({ email }: { email: string | null }) {
                 {group.label}
               </p>
             )}
-            {group.links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={link.href === active ? 'page' : undefined}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  link.href === active ? 'bg-gold text-ink' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {group.links.map((link) =>
+              link.children ? (
+                <DropdownLink key={link.href} link={link} active={active} pathname={pathname} />
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={link.href === active ? 'page' : undefined}
+                  className={linkClass(link.href === active)}
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
           </div>
         ))}
       </nav>

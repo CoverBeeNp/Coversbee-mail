@@ -1,12 +1,18 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, blanxerStatusLabel, type OrderStatus } from '@/lib/types'
 import { formatAmount } from '@/lib/format'
+import { cleanSearchText, customerSearchFilter, orderSearchFilter } from '@/lib/orders/orderSearch'
+import { UNSENT_EMAIL_DAYS, loadOrdersMissingEmail } from '@/lib/orders/unsentEmails'
 import { ORDERS_SYNCED_EVENT } from './SyncBlanxerButton'
 
 const ORDER_LIMIT = 50
+// A search or filter looks through every tracked order, so it can return more.
+const MATCH_LIMIT = 200
+const CUSTOMER_MATCH_LIMIT = 100
+const SEARCH_DELAY_MS = 300
 
 const ORDER_STATUSES: OrderStatus[] = ['received', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']
 
@@ -24,56 +30,78 @@ function customerName(order: Order): string | null {
   return customer?.name ?? null
 }
 
-export default function OrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const requestedStatus = use(searchParams).status as OrderStatus | undefined
+export default function OrdersPage({ searchParams }: { searchParams: Promise<{ status?: string; email?: string }> }) {
+  const params = use(searchParams)
+  const requestedStatus = params.status as OrderStatus | undefined
   const [orders, setOrders] = useState<Order[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(
     requestedStatus && ORDER_STATUSES.includes(requestedStatus) ? requestedStatus : 'all'
   )
+  const [unsentOnly, setUnsentOnly] = useState(params.email === 'unsent')
 
-  async function load() {
+  // Typing fires several loads. Only the latest one may update the list.
+  const latestLoad = useRef(0)
+
+  const load = useCallback(async () => {
+    const loadId = ++latestLoad.current
     const supabase = createBrowserClient()
-    const { data, error } = await supabase
-      .from('orders')
-      .select('id, blanxer_order_number, status, blanxer_status, total, customers(name)')
-      // Null status means not in the email workflow: historical and non-Blanxer
-      // orders, which live on the finance pages.
-      .not('status', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(ORDER_LIMIT)
-    if (error) {
-      setLoadError(error.message)
-      return
+    const text = cleanSearchText(search)
+    try {
+      let query = supabase
+        .from('orders')
+        .select('id, blanxer_order_number, status, blanxer_status, total, customers(name)')
+        // Null status means not in the email workflow: historical and non-Blanxer
+        // orders, which live on the finance pages.
+        .not('status', 'is', null)
+        .order('created_at', { ascending: false })
+      if (statusFilter !== 'all') query = query.eq('status', statusFilter)
+      if (unsentOnly) query = query.in('id', await loadOrdersMissingEmail(supabase, new Date()))
+      if (text) {
+        const { data: customers, error } = await supabase
+          .from('customers')
+          .select('id')
+          .or(customerSearchFilter(text))
+          .limit(CUSTOMER_MATCH_LIMIT)
+        if (error) throw new Error(error.message)
+        query = query.or(orderSearchFilter(text, (customers ?? []).map((c) => c.id)))
+      }
+      const filtering = text || statusFilter !== 'all' || unsentOnly
+      const { data, error } = await query.limit(filtering ? MATCH_LIMIT : ORDER_LIMIT)
+      if (error) throw new Error(error.message)
+      if (loadId !== latestLoad.current) return
+      setLoadError(null)
+      setOrders((data ?? []) as unknown as Order[])
+    } catch (err) {
+      if (loadId !== latestLoad.current) return
+      setLoadError((err as Error).message)
     }
-    setLoadError(null)
-    setOrders((data ?? []) as unknown as Order[])
-  }
+    setLoaded(true)
+  }, [search, statusFilter, unsentOnly])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount, not a render-triggered sync
-    load()
+    const timer = window.setTimeout(load, SEARCH_DELAY_MS)
     window.addEventListener(ORDERS_SYNCED_EVENT, load)
-    return () => window.removeEventListener(ORDERS_SYNCED_EVENT, load)
-  }, [])
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener(ORDERS_SYNCED_EVENT, load)
+    }
+  }, [load])
 
-  const filtered = orders.filter((o) => {
-    if (statusFilter !== 'all' && o.status !== statusFilter) return false
-    const q = search.trim().toLowerCase()
-    if (!q) return true
-    return (
-      (o.blanxer_order_number ?? '').toLowerCase().includes(q) ||
-      (customerName(o) ?? '').toLowerCase().includes(q)
-    )
-  })
+  const filtering = search.trim() !== '' || statusFilter !== 'all' || unsentOnly
 
   return (
     <div className="page">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">Orders</h1>
-          <p className="text-sm text-muted">The latest {ORDER_LIMIT} orders. Open one to send its next status email.</p>
+          <p className="text-sm text-muted">
+            {filtering
+              ? `Searching all orders, showing up to ${MATCH_LIMIT}.`
+              : `The latest ${ORDER_LIMIT} orders. Search to find older ones. Open an order to send its next status email.`}
+          </p>
         </div>
       </div>
 
@@ -81,8 +109,8 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by order number or customer"
-          className="field-input w-72"
+          placeholder="Order number, customer name, phone or email"
+          className="field-input w-80"
         />
         <select
           value={statusFilter}
@@ -96,11 +124,15 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-ink-soft" title={`Orders from the last ${UNSENT_EMAIL_DAYS} days whose customer hasn't had the email for the current status. Received isn't counted`}>
+          <input type="checkbox" checked={unsentOnly} onChange={(e) => setUnsentOnly(e.target.checked)} />
+          Email not sent
+        </label>
       </div>
 
       {loadError && <p role="alert" className="alert-error mb-4">{loadError}</p>}
 
-      {filtered.length > 0 ? (
+      {orders.length > 0 ? (
         <div className="table-shell">
           <table>
             <thead>
@@ -113,7 +145,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
               </tr>
             </thead>
             <tbody>
-              {filtered.map((o) => (
+              {orders.map((o) => (
                 <tr key={o.id}>
                   <td>
                     <Link href={`/orders/${o.id}`} className="font-semibold text-ink hover:text-gold-dark">
@@ -131,8 +163,10 @@ export default function OrdersPage({ searchParams }: { searchParams: Promise<{ s
         </div>
       ) : (
         <div className="card text-center">
-          {orders.length > 0 ? (
-            <p className="text-ink-soft">No orders match your search.</p>
+          {!loaded ? (
+            <p className="text-ink-soft">Loading…</p>
+          ) : filtering ? (
+            <p className="text-ink-soft">{unsentOnly && !search.trim() ? 'Every recent order has had its status email.' : 'No orders match.'}</p>
           ) : (
             <>
               <p className="text-ink-soft">No orders yet.</p>

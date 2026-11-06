@@ -7,6 +7,9 @@ import { listStatements } from '@/lib/statements/statements'
 import { monthlySummary } from '@/lib/analytics/monthly'
 import { formatAmount, formatDate } from '@/lib/format'
 import { buildTodos, type TodoGroup } from '@/lib/overview/todos'
+import { isSyncStale } from '@/lib/overview/syncHealth'
+import { loadOrdersMissingEmail } from '@/lib/orders/unsentEmails'
+import { LATE_AFTER_DAYS, lateOrders } from '@/lib/analytics/deliverySpeed'
 import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, blanxerStatusLabel, type OrderStatus } from '@/lib/types'
 import { StatTile, signedTone } from '../StatTile'
 
@@ -26,7 +29,18 @@ type OpenOrder = {
   customers: { name: string | null } | null
 }
 
-type OrderRow = { total: number | null; delivery_charge: number | null; status: string; created_at: string }
+type OrderRow = {
+  id: string
+  blanxer_order_number: string | null
+  customer_id: string | null
+  workflow_status: OrderStatus | null
+  delivered_at: string | null
+  total: number | null
+  delivery_charge: number | null
+  status: string
+  created_at: string
+}
+type LateCustomer = { id: string; name: string | null; phone: string | null }
 type ExpenseRow = { amount: number; expense_date: string }
 
 // Pulled out of the page component so the "impure function during render"
@@ -71,12 +85,30 @@ export default async function TodayPage() {
   const statusCounts: Record<OrderStatus, number> = { received: 0, dispatched: 0, out_for_delivery: 0, delivered: 0, cancelled: 0 }
   for (const order of trackedOrders ?? []) statusCounts[order.status as OrderStatus]++
 
-  const [orders, expenses, statements, bankBalance] = await Promise.all([
-    fetchAllRows<OrderRow>(service, 'orders', 'id, total, delivery_charge, status:blanxer_status, created_at', 'created_at'),
+  const [orders, expenses, statements, bankBalance, unsentEmails] = await Promise.all([
+    fetchAllRows<OrderRow>(
+      service,
+      'orders',
+      'id, blanxer_order_number, customer_id, workflow_status:status, delivered_at, total, delivery_charge, status:blanxer_status, created_at',
+      'created_at'
+    ),
     fetchAllRows<ExpenseRow>(service, 'expenses', 'id, amount, expense_date', 'expense_date'),
     listStatements(),
     getBankBalance(),
+    loadOrdersMissingEmail(supabase, now),
   ])
+
+  // Same rule as "Late right now" on the Data page, so the two counts agree.
+  const late = lateOrders(
+    orders.map((o) => ({ id: o.id, orderNumber: o.blanxer_order_number, status: o.status, createdAt: o.created_at, deliveredAt: o.delivered_at })),
+    now
+  )
+  const orderById = new Map(orders.map((o) => [o.id, o]))
+  const lateCustomerIds = [...new Set(late.map((o) => orderById.get(o.id)?.customer_id).filter((id): id is string => !!id))]
+  const { data: lateCustomers } = lateCustomerIds.length
+    ? await service.from('customers').select('id, name, phone').in('id', lateCustomerIds)
+    : { data: [] as LateCustomer[] }
+  const customerById = new Map(((lateCustomers ?? []) as LateCustomer[]).map((c) => [c.id, c]))
 
   // Revenue excludes the delivery charge, as on the finance dashboard.
   const monthly = monthlySummary(
@@ -89,6 +121,8 @@ export default async function TodayPage() {
     received: statusCounts.received,
     dispatched: statusCounts.dispatched,
     outForDelivery: statusCounts.out_for_delivery,
+    lateOrders: late.length,
+    unsentEmails: unsentEmails.length,
     failedSends: failedSends ?? 0,
     statementMonths: statements.map((s) => s.month),
     now,
@@ -96,6 +130,7 @@ export default async function TodayPage() {
 
   const profit = thisMonth?.profit ?? 0
   const openCount = OPEN_STATUSES.reduce((sum, status) => sum + statusCounts[status], 0)
+  const syncStale = isSyncStale(syncState?.last_synced_at, now)
 
   return (
     <div className="page space-y-6">
@@ -103,6 +138,13 @@ export default async function TodayPage() {
         <h1 className="text-2xl font-bold text-ink">Today</h1>
         <p className="text-sm text-muted">Last synced {formatSyncedAt(syncState?.last_synced_at)}</p>
       </div>
+
+      {syncStale && (
+        <p role="alert" className="alert-error">
+          The last complete sync from Blanxer was {formatSyncedAt(syncState?.last_synced_at)}. Orders and figures may be out of date.
+          Press Sync from Blanxer, and if it keeps failing, check the message under the button.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Revenue this month" value={formatAmount(thisMonth?.revenue ?? 0)} />
@@ -168,6 +210,50 @@ export default async function TodayPage() {
           )}
         </section>
       </div>
+
+      {late.length > 0 && (
+        <section id="late" className="table-shell scroll-mt-6">
+          <div className="border-b border-line px-5 py-3">
+            <h2 className="font-semibold text-ink">Late orders ({late.length})</h2>
+            <p className="text-sm text-muted">Still open in Blanxer after {LATE_AFTER_DAYS} days. Check with the courier or the customer.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Blanxer status</th>
+                  <th>Waiting</th>
+                </tr>
+              </thead>
+              <tbody>
+                {late.map((order) => {
+                  const row = orderById.get(order.id)
+                  const customer = row?.customer_id ? customerById.get(row.customer_id) : undefined
+                  return (
+                    <tr key={order.id}>
+                      <td>
+                        {/* Orders outside the email workflow have no order page. */}
+                        {row?.workflow_status ? (
+                          <Link href={`/orders/${order.id}`} className="font-semibold text-ink hover:text-gold-dark">#{order.orderNumber}</Link>
+                        ) : (
+                          <span className="font-semibold text-ink">#{order.orderNumber}</span>
+                        )}
+                      </td>
+                      <td className="text-ink-soft">{customer?.name ?? '—'}</td>
+                      <td className="whitespace-nowrap text-ink-soft">{customer?.phone ?? '—'}</td>
+                      <td className="text-ink-soft">{blanxerStatusLabel(order.status)}</td>
+                      <td className="whitespace-nowrap tabular-nums text-negative">{Math.floor(order.ageDays)} days</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="table-shell">
         <div className="grid grid-cols-2 divide-x divide-line sm:grid-cols-3 lg:grid-cols-5">
