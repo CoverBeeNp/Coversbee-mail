@@ -7,6 +7,8 @@ describe('activeHref', () => {
     ['/orders/abc', '/orders'],
     ['/finance', '/finance'],
     ['/orders/outside-blanxer', '/orders/outside-blanxer'],
+    ['/customers', '/customers'],
+    ['/customers/retain', '/customers/retain'],
     ['/finance/expenses', '/finance/expenses'],
     ['/finance/expenses/abc/edit', '/finance/expenses'],
     ['/finance/expenses/categories', '/finance/expenses/categories'],

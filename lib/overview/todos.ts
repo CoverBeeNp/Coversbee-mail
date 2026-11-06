@@ -7,6 +7,8 @@ export type TodoInput = {
   received: number
   dispatched: number
   outForDelivery: number
+  lateOrders: number
+  unsentEmails: number
   failedSends: number
   statementMonths: string[]
   now: Date
@@ -28,6 +30,8 @@ export function buildTodos(input: TodoInput): Todo[] {
     { group: 'Orders', label: 'Dispatch', count: input.received, href: '/orders?status=received', due: input.received > 0 },
     { group: 'Orders', label: 'Follow up', count: input.dispatched, href: '/orders?status=dispatched', due: input.dispatched > 0 },
     { group: 'Orders', label: 'Confirm delivery', count: input.outForDelivery, href: '/orders?status=out_for_delivery', due: input.outForDelivery > 0 },
+    { group: 'Orders', label: 'Chase late orders', count: input.lateOrders, href: '/overview#late', due: input.lateOrders > 0 },
+    { group: 'Emails', label: 'Send status emails', count: input.unsentEmails, href: '/orders?email=unsent', due: input.unsentEmails > 0 },
     { group: 'Emails', label: 'Fix failed emails', count: input.failedSends, href: '/email-log', due: input.failedSends > 0 },
   ]
 

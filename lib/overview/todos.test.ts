@@ -5,6 +5,8 @@ const quiet: TodoInput = {
   received: 0,
   dispatched: 0,
   outForDelivery: 0,
+  lateOrders: 0,
+  unsentEmails: 0,
   failedSends: 0,
   statementMonths: ['2026-09'],
   now: new Date('2026-10-31T12:00:00Z'),
@@ -22,6 +24,14 @@ describe('buildTodos', () => {
       ['Emails', '/email-log'],
     ])
     expect(todos[0].count).toBe(2)
+  })
+
+  it('links late orders to Today and unsent emails to a filtered order list', () => {
+    const todos = buildTodos({ ...quiet, lateOrders: 3, unsentEmails: 5 })
+    expect(todos.map((t) => [t.label, t.count, t.href])).toEqual([
+      ['Chase late orders', 3, '/overview#late'],
+      ['Send status emails', 5, '/orders?email=unsent'],
+    ])
   })
 
   it('asks for last month\'s statement when it is missing', () => {

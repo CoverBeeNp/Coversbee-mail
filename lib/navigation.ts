@@ -1,4 +1,5 @@
-type NavLink = { href: string; label: string }
+// A link with children opens as a dropdown under it in the sidebar.
+export type NavLink = { href: string; label: string; children?: NavLink[] }
 export type NavGroup = { label: string | null; links: NavLink[] }
 
 // The sidebar follows the working day: see what needs doing, fulfil orders,
@@ -10,7 +11,7 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { href: '/orders', label: 'Orders' },
       { href: '/orders/outside-blanxer', label: 'Orders outside Blanxer' },
-      { href: '/customers', label: 'Customers' },
+      { href: '/customers', label: 'Customers', children: [{ href: '/customers/retain', label: 'Retain Customer' }] },
       { href: '/email-log', label: 'Email log' },
     ],
   },
@@ -30,6 +31,7 @@ export const NAV_GROUPS: NavGroup[] = [
 export function activeHref(pathname: string, groups: NavGroup[] = NAV_GROUPS): string | undefined {
   return groups
     .flatMap((group) => group.links)
+    .flatMap((link) => [link, ...(link.children ?? [])])
     .filter((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href
 }
