@@ -6,6 +6,12 @@ export const CHART = {
   revenue: '#e29a1e',
   expenses: '#9a4f2e',
   profit: '#0d9488',
+  // Instagram reach, views and followers. They're audience measures and never
+  // share a chart, and no further hue passed the colour-blindness checks
+  // beside these four.
+  audience: '#3b6fd4',
+  // Order counts sit with revenue as sales measures.
+  orders: '#e29a1e',
   grid: '#e7e4dc',
   axis: '#746f63',
   surface: '#ffffff',

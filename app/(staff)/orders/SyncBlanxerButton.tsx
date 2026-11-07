@@ -37,6 +37,9 @@ export function SyncBlanxerButton() {
         window.dispatchEvent(new Event(ORDERS_SYNCED_EVENT))
         router.refresh()
       }
+      // Rides along so Instagram's daily follower count is saved on any day the
+      // app is open. The route only syncs when the last sync is hours old.
+      void fetch('/api/instagram/sync?ifStale=1', { method: 'POST' }).catch(() => {})
     } catch {
       setResult('Sync failed')
     }

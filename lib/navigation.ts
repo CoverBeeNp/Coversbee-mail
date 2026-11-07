@@ -3,7 +3,7 @@ export type NavLink = { href: string; label: string; children?: NavLink[] }
 export type NavGroup = { label: string | null; links: NavLink[] }
 
 // The sidebar follows the working day: see what needs doing, fulfil orders,
-// then look after the money.
+// then look after the money and the audience.
 export const NAV_GROUPS: NavGroup[] = [
   { label: null, links: [{ href: '/overview', label: 'Today' }] },
   {
@@ -24,6 +24,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/finance/statements', label: 'Statements' },
     ],
   },
+  { label: 'Social', links: [{ href: '/social/instagram', label: 'Instagram' }] },
 ]
 
 // Longest match wins, so /finance/expenses/categories lights up only
